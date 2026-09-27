@@ -30,7 +30,7 @@ namespace DeepPressure
             if(!Application.isPlaying){RefreshInstruments(false,false);return;}
             if(session==null&&building!=null)session=building.session;
             if((session!=null&&session.IsSimulationPaused)||(simulator!=null&&simulator.paused))return;
-            float dt=Time.deltaTime;clock+=dt;
+            float dt=Time.deltaTime*(session==null&&simulator!=null?simulator.simulationSpeed:1);clock+=dt;
             float flow=node==null?0:(float)(node.lastInflowMolPerSecond+node.lastOutflowMolPerSecond);
             bool on=building!=null?building.IsOperational:node!=null&&node.isActiveAndEnabled;
             bool active=on&&flow>.00001f;

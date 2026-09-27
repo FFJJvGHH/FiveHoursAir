@@ -17,7 +17,7 @@ namespace DeepPressure
         internal void RestoreSavedClock(double elapsed,int steps,double remainder)
         {
             ElapsedSeconds = elapsed; StepCount = steps; accumulatedTime = remainder;
-            InitialTotal = TotalInventory(); LastValidation = "All 4 species conserved";
+            InitialTotal = TotalInventory(); LastValidation = "All " + GasMixture.SpeciesCount + " species conserved";
         }
     }
     public sealed partial class DeepExploration

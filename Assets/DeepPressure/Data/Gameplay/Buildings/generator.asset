@@ -13,10 +13,9 @@ MonoBehaviour:
   m_Name: generator
   m_EditorClassIdentifier: 
   id: generator
-  displayName: "\u5730\u70ED\u4F9B\u7535\u673A"
+  displayName: "\u71C3\u6599\u53D1\u7535\u673A"
   category: "\u52A8\u529B"
-  description: "\u4E0E\u65E7\u7AD9\u5730\u70ED\u6BCD\u7EBF\u8026\u5408\uFF0C\u63D0\u4F9B
-    20 \u5355\u4F4D\u7535\u529B\uFF1B\u672C\u6837\u673A\u4E0D\u6D88\u8017\u71C3\u6599\u3002"
+  description: "\u63D0\u4F9B 20 W\uFF1B\u6BCF 45 \u79D2\u6D88\u8017 1 \u71C3\u6599\u3002\u8FDE\u63A5\u5B8C\u5DE5\u7535\u7EBF\u624D\u80FD\u4F9B\u7535\uFF0C\u7A7A\u8F7D\u81EA\u52A8\u5F85\u673A\u3002"
   icon: {fileID: 21300000, guid: 83ede679188465247a0ad9e15b1fb59f, type: 3}
   prefab: {fileID: 5579892965164464322, guid: 7e0a40b556531c0408f65e67d3838413, type: 3}
   footprint: {x: 3, y: 3}
@@ -32,9 +31,16 @@ MonoBehaviour:
     amount: 2
   powerGenerated: 20
   powerRequired: 0
-  fuelItem: {fileID: 0}
-  fuelUnitsPerSecond: 0
+  fuelItem: {fileID: 11400000, guid: 70772b07cb7605e429e08fa006d7a795, type: 2}
+  fuelUnitsPerSecond: 0.022222223
+  batteryCapacity: 600
+  batteryTransferRate: 20
+  exchangesRoomGas: 0
+  gasMode: 4
+  gasAcceptance: 0
+  gasTransferMolPerSecond: 3
   storageCapacity: 0
+  gasStorageVolume: 8
   ports:
   - id: power_out
     label: "\u4F9B\u7535"

@@ -28,4 +28,7 @@ MonoBehaviour:
     amount: 4
   unlockBuildingIds:
   - gas_regulator
+  - waste_tank
+  - exhaust_vent
+  - co2_scrubber
   unlockRecipeIds: []

@@ -1,0 +1,52 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 6c73d5aa9d8782e46a76fc0855dcb0a9, type: 3}
+  m_Name: vapor_reclaimer
+  m_EditorClassIdentifier: 
+  id: vapor_reclaimer
+  displayName: "\u5DE5\u4E1A\u84B8\u6C14\u56DE\u6536\u673A"
+  category: "\u6C14\u4F53\u5DE5\u4E1A"
+  description: "\u6D88\u8017 6 W\uFF0C\u5C06\u623F\u95F4\u5185\u7684\u5DE5\u4E1A\u84B8\u6C14\u5BC6\u5C01\u56DE\u6536\u4E3A\u5DE5\u4E1A\u51DD\u5242\u3002\u51CF\u5C11\u66B4\u9732\u5E76\u4E3A\u7535\u5B50\u5236\u9020\u63D0\u4F9B\u539F\u6599\uFF1B\u4ED3\u6EE1\u65F6\u505C\u6B62\u3002"
+  icon: {fileID: 21300000, guid: 2bfb36553800892419a83f9cbdda7ff0, type: 3}
+  prefab: {fileID: 5151702437762455487, guid: 872e7123d5f5acb45a41c6649d540f50, type: 3}
+  footprint: {x: 2, y: 2}
+  workSeconds: 12
+  requiresFloor: 1
+  blocksMovement: 0
+  role: 13
+  requiredTechId: material_processing
+  cost:
+  - item: {fileID: 11400000, guid: 15f167b5d4ca87f4393592342aad76b8, type: 2}
+    amount: 8
+  - item: {fileID: 11400000, guid: d0962528e982fe748b8d7f0f945de416, type: 2}
+    amount: 3
+  powerGenerated: 0
+  powerRequired: 6
+  fuelItem: {fileID: 0}
+  fuelUnitsPerSecond: 0
+  batteryCapacity: 600
+  batteryTransferRate: 20
+  exchangesRoomGas: 1
+  gasMode: 5
+  gasAcceptance: 0
+  gasTransferMolPerSecond: 2
+  storageCapacity: 0
+  gasStorageVolume: 2
+  ports:
+  - id: gas_out
+    label: "\u51FA\u6C14"
+    kind: 1
+    localPosition: {x: 1.85, y: 0.5}
+  - id: power_in
+    label: "\u7528\u7535"
+    kind: 2
+    localPosition: {x: 0.25, y: 0.15}

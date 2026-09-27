@@ -318,7 +318,7 @@ namespace DeepPressure
                 if(colonyTool==ColonyTool.Build&&buildChoice!=null)
                 {bounds=new RectInt(cell,buildChoice.footprint);allowed=session.CanBuild(buildChoice,cell,out reason);}
                 else{bounds=new RectInt(cell,Vector2Int.one);allowed=session.CanDig(cell,out reason);if(allowed)reason=session.ExcavationRisk(cell);}
-                Rect rect=WorldBounds(bounds);Color color=allowed?Mint:new Color(.94f,.34f,.27f);
+                Rect rect=WorldBounds(bounds);Color color=!allowed?new Color(.94f,.34f,.27f):string.IsNullOrEmpty(reason)?Mint:Amber;
                 Fill(rect,WithAlpha(color,.13f));Brackets(rect,WithAlpha(color,.92f),Mathf.Min(12,rect.width*.25f));
                 if(colonyTool==ColonyTool.Build&&buildChoice!=null&&buildChoice.icon!=null)DrawAssetIcon(buildChoice.icon,Inset(rect,2),WithAlpha(color,.38f),Icon.Build);
                 DrawIcon(colonyTool==ColonyTool.Build?Icon.Build:Icon.Dig,new Rect(pointer.x+13,pointer.y+12,21,21),color);
@@ -379,7 +379,7 @@ namespace DeepPressure
         Rect ColonySelectionRect()
         {
             Vector3 position=selectedWorker!=null?selectedWorker.transform.position:selectedOrder!=null?world.CellToWorld(selectedOrder.targetCell):selectedBuilding.transform.position;
-            Vector2 p=WorldPoint(position);float height=selectedWorker!=null?320:selectedOrder!=null?262:selectedBuilding.GetComponentInChildren<GasNode>()!=null?500:selectedBuilding.definition!=null&&selectedBuilding.definition.role==DeepBuildingRole.Storage?365:330;
+            Vector2 p=WorldPoint(position);float height=selectedWorker!=null?320:selectedOrder!=null?262:selectedBuilding.GetComponentInChildren<GasNode>()!=null?580:selectedBuilding.definition!=null&&selectedBuilding.definition.role==DeepBuildingRole.Storage?365:330;
             float x=p.x+38;if(x+254>uiWidth-16)x=p.x-292;
             if(colonyPanel!=ColonyPanel.None&&x<colonyRect.xMax+12)x=colonyRect.xMax+14;
             return new Rect(Mathf.Clamp(x,16,uiWidth-270),Mathf.Clamp(p.y-height*.5f,74,uiHeight-height-97),254,height);
@@ -572,8 +572,8 @@ namespace DeepPressure
         string CostText(DeepItemAmount[] amounts,int batches=1){if(amounts==null||amounts.Length==0)return "无材料消耗";return string.Join(" · ",amounts.Where(c=>c.item!=null).Select(c=>c.item.displayName+" "+(c.amount*batches)));}
         string TechName(string id){var tech=session.catalog.FindTech(id);return tech==null?id:tech.displayName;}
         static string OrderState(DeepWorkOrder order){switch(order.state){case DeepWorkState.Moving:return "前往作业点";case DeepWorkState.Working:return "作业中";case DeepWorkState.Blocked:return "等待条件";case DeepWorkState.Completed:return "完成";case DeepWorkState.Cancelled:return "已取消";default:return "等待人员";}}
-        static string BuildingStatus(DeepBuildingInstance b){if(!b.isConstructed)return "施工中";if(!b.isOn)return "已关闭";if(b.definition.role==DeepBuildingRole.Generator&&!b.powered)return "缺少燃料";if(b.definition.powerRequired>0&&!b.powered)return "等待供电";return b.IsOperational?"运行正常":"等待工作条件";}
-        static Icon BuildingIcon(DeepBuildingRole role){switch(role){case DeepBuildingRole.Light:return Icon.Lamp;case DeepBuildingRole.Generator:return Icon.Power;case DeepBuildingRole.Research:return Icon.Research;case DeepBuildingRole.Fabricator:return Icon.Craft;case DeepBuildingRole.Storage:return Icon.Storage;default:return Icon.Build;}}
+        string BuildingStatus(DeepBuildingInstance b){if(!b.isConstructed)return "施工中";if(!b.isOn)return "已关闭";if(session!=null&&(b.definition.role==DeepBuildingRole.Generator||b.definition.role==DeepBuildingRole.Battery||b.definition.powerRequired>0&&!b.powered))return session.PowerStatus(b);if(session!=null&&!string.IsNullOrEmpty(session.GasFacilityStatus(b)))return session.GasFacilityStatus(b);return b.IsOperational?"运行正常":"等待工作条件";}
+        static Icon BuildingIcon(DeepBuildingRole role){switch(role){case DeepBuildingRole.Light:return Icon.Lamp;case DeepBuildingRole.Generator:return Icon.Power;case DeepBuildingRole.Battery:return Icon.Battery;case DeepBuildingRole.GasPump:return Icon.Pump;case DeepBuildingRole.Vent:return Icon.Vent;case DeepBuildingRole.GasTank:return Icon.OxygenTank;case DeepBuildingRole.GasSeparator:return Icon.Filter;case DeepBuildingRole.Research:return Icon.Research;case DeepBuildingRole.Fabricator:return Icon.Craft;case DeepBuildingRole.Storage:return Icon.Storage;default:return Icon.Build;}}
         Rect WorldBounds(RectInt bounds){Vector2 a=WorldPoint(world.transform.TransformPoint(new Vector3(bounds.xMin*world.cellSize,bounds.yMax*world.cellSize,0))),b=WorldPoint(world.transform.TransformPoint(new Vector3(bounds.xMax*world.cellSize,bounds.yMin*world.cellSize,0)));return Rect.MinMaxRect(Mathf.Min(a.x,b.x),Mathf.Min(a.y,b.y),Mathf.Max(a.x,b.x),Mathf.Max(a.y,b.y));}
         Rect WorkerBounds(DeepWorker worker)
         {

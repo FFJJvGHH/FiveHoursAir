@@ -1,0 +1,52 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 6c73d5aa9d8782e46a76fc0855dcb0a9, type: 3}
+  m_Name: co2_scrubber
+  m_EditorClassIdentifier: 
+  id: co2_scrubber
+  displayName: "\u4E8C\u6C27\u5316\u78B3\u6536\u96C6\u5668"
+  category: "\u6C14\u4F53\u5DE5\u4E1A"
+  description: "\u6D88\u8017 10 W\uFF0C\u4ECE\u5BA4\u5185\u9009\u62E9\u6536\u96C6\u4E8C\u6C27\u5316\u78B3\u3002\u9700\u8981\u5C3E\u6C14\u50A8\u7F50\u548C\u6392\u653E\u94FE\uFF0C\u4E0D\u80FD\u51ED\u7A7A\u9500\u6BC1\u5E9F\u6C14\u3002"
+  icon: {fileID: 21300000, guid: 2bfb36553800892419a83f9cbdda7ff0, type: 3}
+  prefab: {fileID: 4574964334879115696, guid: b5bdbf52a0eaa724782ca31ecc974c06, type: 3}
+  footprint: {x: 2, y: 2}
+  workSeconds: 12
+  requiresFloor: 1
+  blocksMovement: 0
+  role: 13
+  requiredTechId: pressure_engineering
+  cost:
+  - item: {fileID: 11400000, guid: 15f167b5d4ca87f4393592342aad76b8, type: 2}
+    amount: 8
+  - item: {fileID: 11400000, guid: d0962528e982fe748b8d7f0f945de416, type: 2}
+    amount: 3
+  powerGenerated: 0
+  powerRequired: 10
+  fuelItem: {fileID: 0}
+  fuelUnitsPerSecond: 0
+  batteryCapacity: 600
+  batteryTransferRate: 20
+  exchangesRoomGas: 1
+  gasMode: 3
+  gasAcceptance: 2
+  gasTransferMolPerSecond: 2
+  storageCapacity: 0
+  gasStorageVolume: 2
+  ports:
+  - id: gas_out
+    label: "\u51FA\u6C14"
+    kind: 1
+    localPosition: {x: 1.85, y: 0.5}
+  - id: power_in
+    label: "\u7528\u7535"
+    kind: 2
+    localPosition: {x: 0.25, y: 0.15}

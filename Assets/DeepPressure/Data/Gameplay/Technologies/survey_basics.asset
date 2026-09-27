@@ -25,4 +25,5 @@ MonoBehaviour:
     amount: 4
   unlockBuildingIds:
   - gas_tank
+  - oxygen_tank
   unlockRecipeIds: []

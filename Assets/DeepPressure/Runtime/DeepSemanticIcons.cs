@@ -39,8 +39,10 @@ namespace DeepPressure
                     c.Box(19,19,26,26);c.Box(26,26,12,12);for(int k=0;k<3;k++){float v=23+k*9;c.Line(v,10,v,18);c.Line(v,46,v,54);c.Line(10,v,18,v);c.Line(46,v,54,v);}break;
                 case "industrial_efficiency":case "precision_fabricator":
                     c.Arc(32,32,20,30,320);c.Path(4,40,50,51,50,51,39);c.Path(4,35,46,23,28,33,28,29,17,43,35,33,35);break;
-                case "gas_tank":case "high_pressure_tank":case "oxygen_tank":case "waste_tank":case "battery":
-                    c.Box(18,12,28,39);c.Line(24,56,40,56,5);c.Line(23,21,41,21);c.Line(23,30,41,30);c.Line(23,39,41,39);break;
+                case "gas_tank":case "high_pressure_tank":case "oxygen_tank":case "waste_tank":
+                    c.Box(18,12,28,36);c.Arc(32,48,14,0,180);c.Line(13,11,51,11,5);c.Line(24,24,40,24);c.Line(24,35,40,35);break;
+                case "battery":
+                    c.Box(16,12,32,39);c.Line(25,57,39,57,5);c.Path(3,34,45,25,30,33,30,29,20,40,35,32,35);break;
                 case "storage":case "advanced_storage":case "deep_storage":
                     c.Box(11,13,42,38);c.Line(11,32,53,32);c.Line(25,42,39,42,5);c.Line(25,23,39,23,5);break;
                 case "fabricator":

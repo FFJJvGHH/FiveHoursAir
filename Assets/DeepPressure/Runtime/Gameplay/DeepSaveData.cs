@@ -36,6 +36,12 @@ namespace DeepPressure
         public float stableAirSeconds;
         public GasMixture[] atmosphereCells;
         public double[] atmosphereTemperatures;
+        public float atmosphereDiffusion,atmosphereConduction,nextProductionCheck;
+        public bool hazardsEnabled;
+        public int hazardEventCount;
+        public string lastHazardMessage;
+        public DeepSavedHazard[] hazards;
+        public DeepSavedIgnition[] ignitionCooldowns;
     }
     [Serializable] public sealed class DeepSaveSlotInfo
     {
@@ -64,6 +70,8 @@ namespace DeepPressure
         public int digPreference,buildPreference,researchPreference,craftPreference,pipePreference;
         public bool automationPaused;
         public float airReserveSeconds=90;
+        public float nextWorkSearchTime,environmentEfficiency = 1;
+        public bool environmentUnsafe;
     }
     [Serializable] public sealed class DeepSavedOrder
     {
@@ -108,4 +116,13 @@ namespace DeepPressure
         public bool hasSample;
         public DeepExploration.RegionSample sample;
     }
+    [Serializable] public sealed class DeepSavedHazard
+    {
+        public DeepHazardKind kind;
+        public Vector2Int cell;
+        public Vector2 direction;
+        public float strength,time;
+        public string message;
+    }
+    [Serializable] public struct DeepSavedIgnition { public Vector2Int cell; public float time; }
 }

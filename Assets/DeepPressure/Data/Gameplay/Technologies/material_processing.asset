@@ -24,6 +24,8 @@ MonoBehaviour:
   cost:
   - item: {fileID: 11400000, guid: 7f17c053bebcae846b93f55ae91dc661, type: 2}
     amount: 10
-  unlockBuildingIds: []
+  unlockBuildingIds:
+  - vapor_reclaimer
   unlockRecipeIds:
   - smelt_alloy_bulk
+  - reagent_electronics

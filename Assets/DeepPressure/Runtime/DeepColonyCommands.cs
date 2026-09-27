@@ -130,7 +130,7 @@ namespace DeepPressure
                 var b=definitions[buildingPage*pageSize+i];bool unlocked=session.IsTechUnlocked(b.requiredTechId),affordable=CanAfford(b.cost);
                 Rect r=new Rect(colonyRect.x+14+(i%2)*196,top+(i/2)*84,186,75);
                 Rounded(r,buildChoice==b&&colonyTool==ColonyTool.Build?new Color(.16f,.30f,.24f):new Color(.067f,.113f,.129f),8);
-                DrawAssetIcon(b.icon,new Rect(r.x+8,r.y+12,42,43),unlocked?White:Muted,BuildingIcon(b.role));
+                SemanticIcon(DeepSemanticIcons.ForBuilding(b),new Rect(r.x+8,r.y+12,42,43),unlocked?White:Muted);
                 Label(new Rect(r.x+57,r.y+8,123,23),b.displayName,body,unlocked?White:Muted);
                 Label(new Rect(r.x+57,r.y+31,123,32),unlocked?CostText(b.cost):"需要 "+TechName(b.requiredTechId),new GUIStyle(tiny){alignment=TextAnchor.MiddleLeft,wordWrap=true},unlocked&&affordable?Muted:Amber);
                 if(!unlocked)DrawIcon(Icon.Lock,new Rect(r.xMax-19,r.y+2,14,14),Amber);

@@ -1,0 +1,28 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: ddc6c87997088894190d55c6d98f2968, type: 3}
+  m_Name: press_fuel
+  m_EditorClassIdentifier: 
+  id: press_fuel
+  displayName: "\u538B\u5236\u71C3\u6599"
+  description: "\u4ECE\u6DF7\u5408\u77FF\u6599\u4E2D\u63D0\u53D6\u53EF\u71C3\u7EC4\u5206\uFF1A8
+    \u77FF\u77F3 \u2192 2 \u71C3\u6599\u3002"
+  icon: {fileID: 838474315, guid: 3fda3afceb396b94f898971885e84b39, type: 3}
+  inputs:
+  - item: {fileID: 11400000, guid: 7f17c053bebcae846b93f55ae91dc661, type: 2}
+    amount: 8
+  outputs:
+  - item: {fileID: 11400000, guid: 70772b07cb7605e429e08fa006d7a795, type: 2}
+    amount: 2
+  workSeconds: 12
+  requiredBuildingId: fabricator
+  requiredTechId: 

@@ -14,7 +14,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   id: power_distribution
   displayName: "\u80FD\u6E90\u5206\u914D"
-  description: "\u63D0\u5347\u5730\u70ED\u8026\u5408\u6548\u7387\uFF0C\u4E3A\u591A\u53F0\u5DE5\u4E1A\u8BBE\u5907\u63D0\u4F9B\u7A33\u5B9A\u529F\u7387\u3002"
+  description: "\u63D0\u9AD8\u71C3\u6599\u5229\u7528\u6548\u7387\u5E76\u89E3\u9501\u84C4\u7535\u6C60\uFF0C\u5728\u540C\u4E00\u7535\u7EBF\u7F51\u7EDC\u4E2D\u7F13\u51B2\u8D1F\u8F7D\u3002"
   icon: {fileID: 21300000, guid: 83ede679188465247a0ad9e15b1fb59f, type: 3}
   branch: "\u6B96\u6C11\u5DE5\u7A0B"
   tier: 1
@@ -28,4 +28,5 @@ MonoBehaviour:
     amount: 4
   unlockBuildingIds:
   - improved_generator
+  - battery
   unlockRecipeIds: []

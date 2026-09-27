@@ -62,6 +62,9 @@ namespace DeepPressure
         public DeepSaveData CaptureSaveState()
         {
             InitializeSession(); if (!initialized || !world.HasValidTerrainData) throw new InvalidOperationException("关卡尚未初始化");
+            // Cells are authoritative. Refresh room summaries before serializing both views.
+            var savedAtmosphere = lifeSupportEnabled ? Atmosphere : null;
+            if (savedAtmosphere != null) savedAtmosphere.SyncRooms();
             var hud = world.GetComponent<DeepPressureHUD>(); var camera = hud != null && hud.viewCamera != null ? hud.viewCamera : Camera.main;
             var data = new DeepSaveData
             {
@@ -72,9 +75,16 @@ namespace DeepPressure
                 exploration = exploration == null ? null : exploration.CaptureDiscovery(),
                 hasCamera = camera != null,cameraPosition = camera == null ? Vector3.zero : camera.transform.position,cameraSize = camera == null ? 12 : camera.orthographicSize,
                 overlay = hud == null ? 0 : (int)hud.overlay,
-                systemsRevision=1,wiredPower=useWiredPower,lifeSupport=lifeSupportEnabled,wires=completedWireCells.ToArray(),
-                stableAirSeconds=StableAirSeconds,production=productionTargets.ConvertAll(p=>new DeepProductionTarget{recipeId=p.recipeId,targetAmount=p.targetAmount,enabled=p.enabled}).ToArray()
+                systemsRevision=2,wiredPower=useWiredPower,lifeSupport=lifeSupportEnabled,wires=completedWireCells.ToArray(),
+                stableAirSeconds=StableAirSeconds,production=productionTargets.ConvertAll(p=>new DeepProductionTarget{recipeId=p.recipeId,targetAmount=p.targetAmount,enabled=p.enabled}).ToArray(),
+                nextProductionCheck=nextProductionCheck,hazardsEnabled=hazardsEnabled,hazardEventCount=HazardEventCount,lastHazardMessage=LastHazardMessage,
+                hazards=HazardEvents.ConvertAll(h=>new DeepSavedHazard{kind=h.kind,cell=h.cell,direction=h.direction,strength=h.strength,time=h.time,message=h.message}).ToArray(),
+                atmosphereDiffusion=savedAtmosphere==null?1.25f:savedAtmosphere.diffusionPerSecond,
+                atmosphereConduction=savedAtmosphere==null?.08f:savedAtmosphere.thermalConductionPerSecond
             };
+            var cooldowns = new List<DeepSavedIgnition>();
+            foreach (var pair in lastIgnitionEvent) cooldowns.Add(new DeepSavedIgnition { cell = pair.Key,time = pair.Value });
+            data.ignitionCooldowns = cooldowns.ToArray();
             if (constructedFloorTile != null) savedTilePalette[constructedFloorTile.name] = constructedFloorTile;
             for (int y = 0; y < world.height; y++) for (int x = 0; x < world.width; x++)
             {
@@ -112,7 +122,8 @@ namespace DeepPressure
                 if (worker == null) continue;
                 workerData.Add(new DeepSavedWorker { id = ObjectId(worker,"w"),name = worker.displayName,position = worker.transform.position,path = worker.CapturePath(),currentOrderId = worker.currentOrder == null ? -1 : worker.currentOrder.id,
                     moveSpeed = worker.moveCellsPerSecond,workSpeed = worker.workSpeed,digPreference = worker.digPreference,buildPreference = worker.buildPreference,researchPreference = worker.researchPreference,
-                    craftPreference = worker.craftPreference,pipePreference = worker.pipePreference,automationPaused = worker.automationPaused,airReserveSeconds=worker.airReserveSeconds });
+                    craftPreference = worker.craftPreference,pipePreference = worker.pipePreference,automationPaused = worker.automationPaused,airReserveSeconds=worker.airReserveSeconds,
+                    nextWorkSearchTime=worker.nextWorkSearchTime,environmentUnsafe=worker.environmentUnsafe,environmentEfficiency=worker.environmentEfficiency });
             }
             data.workers = workerData.ToArray();
             var orderData = new List<DeepSavedOrder>();
@@ -127,7 +138,7 @@ namespace DeepPressure
             var roomData = new List<DeepSavedRoom>();
             foreach (var room in world.Rooms) roomData.Add(new DeepSavedRoom { anchor = room.cells[0],cells = room.cellCount,gas = room.gas,temperature = room.temperatureC });
             data.rooms = roomData.ToArray();
-            if(lifeSupportEnabled&&Atmosphere!=null){data.atmosphereCells=Atmosphere.CaptureCells();data.atmosphereTemperatures=Atmosphere.CaptureTemperatures();}
+            if(savedAtmosphere!=null){data.atmosphereCells=savedAtmosphere.CaptureCells();data.atmosphereTemperatures=savedAtmosphere.CaptureTemperatures();}
             if (network != null) { data.networkElapsed = network.ElapsedSeconds; data.networkSteps = network.StepCount; data.networkRemainder = network.SaveRemainder; data.networkStepSeconds = network.fixedStepSeconds; }
             return data;
         }
@@ -212,6 +223,7 @@ namespace DeepPressure
                 building.transform.SetPositionAndRotation(entry.position,entry.rotation); building.transform.localScale = entry.scale;
                 building.isOn = entry.isOn; building.isConstructed = entry.isConstructed; building.fuelRemainder = entry.fuelRemainder; building.session = this;
                 building.batteryEnergy=entry.batteryEnergy;building.fuelSecondsRemaining=entry.fuelSecondsRemaining;
+                building.RefreshOwnedComponents();
                 building.gameObject.SetActive(entry.active); Buildings.Add(building);
             }
             var workers = new Dictionary<string,DeepWorker>(StringComparer.Ordinal);
@@ -222,7 +234,10 @@ namespace DeepPressure
                 worker.moveCellsPerSecond = entry.moveSpeed; worker.workSpeed = entry.workSpeed; worker.RestorePath(entry.path);
                 worker.digPreference = entry.digPreference; worker.buildPreference = entry.buildPreference; worker.researchPreference = entry.researchPreference;
                 worker.craftPreference = entry.craftPreference; worker.pipePreference = entry.pipePreference; worker.automationPaused = entry.automationPaused;
-                worker.airReserveSeconds=data.systemsRevision>0?entry.airReserveSeconds:90;worker.environmentEfficiency=1;
+                worker.airReserveSeconds=data.systemsRevision>0?entry.airReserveSeconds:90;
+                worker.nextWorkSearchTime=data.systemsRevision>=2?entry.nextWorkSearchTime:0;
+                worker.environmentUnsafe=data.systemsRevision>=2&&entry.environmentUnsafe;
+                worker.environmentEfficiency=data.systemsRevision>=2?entry.environmentEfficiency:1;
             }
             world.terrainKinds = (TerrainKind[])data.terrain.Clone();
             if (world.terrain != null)
@@ -247,7 +262,6 @@ namespace DeepPressure
                 if (room == null || room.cellCount != entry.cells) throw new InvalidOperationException("气室拓扑与存档不一致");
                 room.gas = entry.gas; room.temperatureC = entry.temperature;
             }
-            if (exploration != null) exploration.RestoreDiscovery(data.exploration);
             var nodes = new Dictionary<string,GasNode>(StringComparer.Ordinal);
             foreach (var node in world.GetComponentsInChildren<GasNode>(true)) nodes[ObjectId(node,"n")] = node;
             foreach (var entry in data.nodes)
@@ -305,12 +319,35 @@ namespace DeepPressure
                 StableAirSeconds=data.stableAirSeconds;productionTargets=new List<DeepProductionTarget>();
                 foreach(var p in data.production??Array.Empty<DeepProductionTarget>())productionTargets.Add(new DeepProductionTarget{recipeId=p.recipeId,targetAmount=p.targetAmount,enabled=p.enabled});
             }
-            nextProductionCheck=0;InvalidatePowerTopology();
-            if(lifeSupportEnabled&&Atmosphere!=null)
+            else
             {
-                Atmosphere.ResetFromRooms();
-                if(data.atmosphereCells!=null)Atmosphere.RestoreCells(data.atmosphereCells,data.atmosphereTemperatures);
+                // Old saves predate physical wires and life support: never inherit a later colony's state.
+                useWiredPower=false;lifeSupportEnabled=false;completedWireCells.Clear();productionTargets.Clear();StableAirSeconds=0;
             }
+            nextProductionCheck=data.systemsRevision>=2?data.nextProductionCheck:0;InvalidatePowerTopology();
+            pendingBreaches.Clear();lastIgnitionEvent.Clear();HazardEvents.Clear();
+            HazardEventCount=data.systemsRevision>=2?data.hazardEventCount:0;LastHazardMessage=data.systemsRevision>=2?data.lastHazardMessage:null;
+            if(data.systemsRevision>=2)
+            {
+                hazardsEnabled=data.hazardsEnabled;
+                foreach(var entry in data.ignitionCooldowns)lastIgnitionEvent.Add(entry.cell,entry.time);
+                foreach(var entry in data.hazards)HazardEvents.Add(new DeepHazardEvent{kind=entry.kind,cell=entry.cell,direction=entry.direction,strength=entry.strength,time=entry.time,message=entry.message});
+            }
+            else hazardsEnabled=true;
+            gasFacilityStatus.Clear();OxygenSupplyRate=OxygenDemandRate=CarbonRemovalRate=0;UnsafeWorkerCount=0;
+            foreach(var worker in Workers)if(worker!=null&&worker.environmentUnsafe)UnsafeWorkerCount++;
+            // Recreate the open-cell mask from the restored terrain before applying exact cell contents.
+            // Also reset an existing field for legacy room-only saves so UI cannot read stale cell gas.
+            var restoredAtmosphere=world.GetComponent<DeepAtmosphereField>();
+            if(lifeSupportEnabled&&restoredAtmosphere==null)restoredAtmosphere=world.gameObject.AddComponent<DeepAtmosphereField>();
+            if(restoredAtmosphere!=null)
+            {
+                restoredAtmosphere.world=world;restoredAtmosphere.ResetFromRooms();atmosphere=restoredAtmosphere;
+                if(lifeSupportEnabled&&data.atmosphereCells!=null)restoredAtmosphere.RestoreCells(data.atmosphereCells,data.atmosphereTemperatures);
+                restoredAtmosphere.diffusionPerSecond=data.systemsRevision>=2?data.atmosphereDiffusion:1.25f;
+                restoredAtmosphere.thermalConductionPerSecond=data.systemsRevision>=2?data.atmosphereConduction:.08f;
+            }
+            if (exploration != null) exploration.RestoreDiscovery(data.exploration);
             RebuildOccupancy(); RefreshStorageCapacity(); UpdatePower(0);
             if (network != null)
             {

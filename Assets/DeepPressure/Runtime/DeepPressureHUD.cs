@@ -153,11 +153,11 @@ namespace DeepPressure
             if (!HasSelection) return default;
             if(ColonyHasSelection)return ColonySelectionRect();
             float height = 166;
-            if (selectedNode != null) height = 315;
+            if (selectedNode != null) height = 357;
             else if (selectedLink != null) height = 208;
-            else if (!Visible(selectedCell)) height = HasRecordedSample(selectedCell) ? 265 : 172;
+            else if (!Visible(selectedCell)) height = HasRecordedSample(selectedCell) ? 310 : 172;
             else if (world.GetTerrain(selectedCell.x,selectedCell.y) != TerrainKind.Empty) height = 174;
-            else { DeepPressureRoom room = world.RoomAt(selectedCell); height = room != null && RoomVisible(room) ? 250 : 154; }
+            else { DeepPressureRoom room = world.RoomAt(selectedCell); height = room != null ? 292 : 154; }
             Vector2 anchor = WorldPoint(selectedNode != null ? selectedNode.transform.position : selectedLink != null && selectedLink.from != null && selectedLink.to != null ? (selectedLink.from.transform.position+selectedLink.to.transform.position)*.5f : world.CellToWorld(selectedCell));
             float x = anchor.x+32; if (x+244 > uiWidth-18) x = anchor.x-276;
             return new Rect(Mathf.Clamp(x,18,uiWidth-262),Mathf.Clamp(anchor.y-height*.5f,63,uiHeight-height-99),244,height);
@@ -267,15 +267,16 @@ namespace DeepPressure
             }
             DeepPressureRoom room = world.RoomAt(selectedCell);
             CardTitle(x,ref y,Icon.Air,region == null ? "地下空腔" : RegionName(region));
-            if (room == null || !RoomVisible(room))
+            if (room == null)
             {
                 Label(new Rect(x,y,210,27),"边界尚未探明",body,Muted); y += 41;
                 DrawExplorationButtons(x,y); return;
             }
-            PressureValue(x,ref y,room.PressureKPa,room.isOpen ? "开放空间" : "封闭空间");
-            Metric(new Rect(x,y,107,23),Icon.Volume,room.volumeM3.ToString("0")+" m³");
-            Metric(new Rect(x+111,y,100,23),Icon.Temperature,room.temperatureC.ToString("0")+" °C"); y += 29;
-            DrawComposition(x,ref y,room.gas);
+            var field=session==null?null:session.Atmosphere;
+            PressureValue(x,ref y,field==null?room.PressureKPa:field.PressureKPa(selectedCell),field==null?"房间平均气氛":"此格现场气氛");
+            Metric(new Rect(x,y,107,23),Icon.Volume,(field==null?room.volumeM3:field.CellVolumeM3).ToString("0.#")+" m³");
+            Metric(new Rect(x+111,y,100,23),Icon.Temperature,(field==null?room.temperatureC:field.TemperatureC(selectedCell)).ToString("0")+" °C"); y += 29;
+            DrawComposition(x,ref y,field==null?room.gas:field.Sample(selectedCell));
         }
         void PressureValue(float x,ref float y,double value,string status)
         {

@@ -12,6 +12,7 @@ namespace DeepPressure
             {
                 RequireSave(initialized && world != null && catalog != null,"关卡或内容目录未就绪");
                 RequireSave(data != null && data.version == 1,"不支持的世界数据版本");
+                RequireSave(data.systemsRevision >= 0 && data.systemsRevision <= 2,"不支持的基地系统版本");
                 RequireSave(data.sceneName == world.gameObject.scene.name,"存档属于另一个关卡");
                 RequireSave(data.width == world.width && data.height == world.height,"存档地图尺寸不匹配");
                 RequireSave(data.terrain != null && data.terrain.Length == world.width*world.height && data.terrainTiles != null && data.terrainTiles.Length == data.terrain.Length,"地形数据不完整");
@@ -30,8 +31,23 @@ namespace DeepPressure
                     if(data.lifeSupport)
                     {
                         RequireSave(data.atmosphereCells!=null&&data.atmosphereTemperatures!=null&&data.atmosphereCells.Length==data.terrain.Length&&data.atmosphereTemperatures.Length==data.terrain.Length,"逐格气氛数据不完整");
-                        for(int i=0;i<data.atmosphereCells.Length;i++)RequireSave(data.atmosphereCells[i].IsFiniteAndNonnegative&&SaveFinite(data.atmosphereTemperatures[i])&&data.atmosphereTemperatures[i]>-273.15,"逐格气氛数据无效");
+                        for(int i=0;i<data.atmosphereCells.Length;i++)
+                        {
+                            RequireSave(data.atmosphereCells[i].IsFiniteAndNonnegative&&SaveFinite(data.atmosphereTemperatures[i])&&data.atmosphereTemperatures[i]>=-272.15,"逐格气氛数据无效");
+                            RequireSave(data.terrain[i]==TerrainKind.Empty||data.atmosphereCells[i].Total<=1e-8,"固体地块不能包含气体库存");
+                        }
                     }
+                }
+                if(data.systemsRevision>=2)
+                {
+                    RequireSave(SaveFinite(data.nextProductionCheck)&&data.nextProductionCheck>=0,"自动生产时钟无效");
+                    RequireSave(SaveFinite(data.atmosphereDiffusion)&&data.atmosphereDiffusion>=0&&SaveFinite(data.atmosphereConduction)&&data.atmosphereConduction>=0,"逐格气氛模拟设置无效");
+                    RequireSave(data.hazards!=null&&data.ignitionCooldowns!=null&&data.hazards.Length<=20&&data.hazardEventCount>=data.hazards.Length,"事故记录数据无效");
+                    foreach(var hazard in data.hazards)
+                        RequireSave(hazard!=null&&Enum.IsDefined(typeof(DeepHazardKind),hazard.kind)&&world.IsInside(hazard.cell)&&SaveFinite(hazard.direction.x)&&SaveFinite(hazard.direction.y)&&SaveFinite(hazard.strength)&&hazard.strength>=0&&SaveFinite(hazard.time)&&hazard.time>=0&&hazard.time<=data.simulationTime+.001f,"事故记录位置或时间无效");
+                    var ignitionCells=new HashSet<Vector2Int>();
+                    foreach(var ignition in data.ignitionCooldowns)
+                        RequireSave(world.IsInside(ignition.cell)&&ignitionCells.Add(ignition.cell)&&SaveFinite(ignition.time)&&ignition.time>=0&&ignition.time<=data.simulationTime+.001f,"燃烧冷却记录无效");
                 }
                 RequireSave(!data.hasCamera || SaveFinite(data.cameraPosition) && SaveFinite(data.cameraSize) && data.cameraSize > 0 && data.cameraSize <= 200,"镜头数据无效");
                 ValidateSavedItems(data.inventory);
@@ -84,14 +100,21 @@ namespace DeepPressure
                     RequireSave(entry.path != null,"工人路线缺失"); foreach (var cell in entry.path) RequireSave(world.IsInside(cell),"工人路线超出地图");
                     savedWorkers.Add(entry.id,entry);
                     RequireSave(SaveFinite(entry.airReserveSeconds)&&entry.airReserveSeconds>=0&&entry.airReserveSeconds<=90,"工人气氛缓冲状态无效");
+                    if(data.systemsRevision>=2)RequireSave(SaveFinite(entry.nextWorkSearchTime)&&entry.nextWorkSearchTime>=0&&SaveFinite(entry.environmentEfficiency)&&entry.environmentEfficiency>=.5f&&entry.environmentEfficiency<=1,"工人调度或气氛效率状态无效");
                 }
-                var orderIds = new HashSet<int>(); var savedOrders = new Dictionary<int,DeepSavedOrder>(); long held = 0;
+                var orderIds = new HashSet<int>(); var savedOrders = new Dictionary<int,DeepSavedOrder>(); var wirePlans = new HashSet<Vector2Int>(); long held = 0;
                 foreach (var entry in data.orders)
                 {
                     RequireSave(entry != null && entry.id > 0 && orderIds.Add(entry.id) && data.nextOrderId > entry.id,"工单编号无效");
                     RequireSave(Enum.IsDefined(typeof(DeepWorkKind),entry.kind) && Enum.IsDefined(typeof(DeepWorkState),entry.state) && entry.priority >= 1 && entry.priority <= 9 && entry.batches >= 1 && entry.batches <= 999,"工单类型或优先级无效");
                     RequireSave(SaveFinite(entry.totalSeconds) && entry.totalSeconds > 0 && SaveFinite(entry.completedSeconds) && entry.completedSeconds >= 0 && entry.completedSeconds <= entry.totalSeconds+.001f && SaveFinite(entry.nextRetryTime),"工单进度无效");
                     bool active = entry.state != DeepWorkState.Completed && entry.state != DeepWorkState.Cancelled;
+                    RequireSave(world.IsInside(entry.targetCell),"工单目标超出地图");
+                    RequireSave(string.IsNullOrEmpty(entry.workerId)||world.IsInside(entry.workCell),"工单站位超出地图");
+                    if(active&&entry.kind==DeepWorkKind.Wire)
+                        RequireSave(data.systemsRevision>0&&wirePlans.Add(entry.targetCell)&&Array.IndexOf(data.wires,entry.targetCell)<0,"铺线工单重复或已建成");
+                    if(active&&(entry.kind==DeepWorkKind.Sample||entry.kind==DeepWorkKind.Survey))
+                        RequireSave(data.systemsRevision>0&&exploration!=null&&world.RegionAt(entry.targetCell)!=null,"勘探工单缺少目标洞层");
                     RequireSave(string.IsNullOrEmpty(entry.buildingDefinitionId) || catalog.FindBuilding(entry.buildingDefinitionId) != null,"工单建筑资源缺失");
                     RequireSave(string.IsNullOrEmpty(entry.technologyId) || catalog.FindTech(entry.technologyId) != null,"工单科技资源缺失");
                     RequireSave(string.IsNullOrEmpty(entry.recipeId) || catalog.FindRecipe(entry.recipeId) != null,"工单配方资源缺失");
@@ -117,7 +140,19 @@ namespace DeepPressure
                     RequireSave(data.exploration != null && data.exploration.visible != null && data.exploration.visible.Length == data.terrain.Length && data.exploration.regions != null,"探索数据不完整");
                     var regionIds = new HashSet<string>(); foreach (var region in world.GetComponentsInChildren<DeepPressureRegion>(true)) regionIds.Add(region.stableId);
                     var savedRegionIds = new HashSet<string>();
-                    foreach (var region in data.exploration.regions) RequireSave(region != null && regionIds.Contains(region.id) && savedRegionIds.Add(region.id) && Enum.IsDefined(typeof(DeepExplorationState),region.state),"探索区域缺失或重复");
+                    foreach (var region in data.exploration.regions)
+                    {
+                        RequireSave(region != null && regionIds.Contains(region.id) && savedRegionIds.Add(region.id) && Enum.IsDefined(typeof(DeepExplorationState),region.state),"探索区域缺失或重复");
+                        if(region.hasSample)
+                        {
+                            var sample=region.sample;
+                            RequireSave(world.IsInside(sample.sampleCell)&&SaveFinite(sample.pressureKPa)&&sample.pressureKPa>=0&&SaveFinite(sample.temperatureC)&&sample.temperatureC>-273.15f&&SaveFinite(sample.sampledAtSeconds),"洞层样本数据无效");
+                            double compositionTotal=0;
+                            foreach(float fraction in new[]{sample.composition.x,sample.composition.y,sample.composition.z,sample.composition.w,sample.reactiveComposition.x,sample.reactiveComposition.y})
+                            {RequireSave(SaveFinite(fraction)&&fraction>=0&&fraction<=1.00001f,"洞层样本气体比例无效");compositionTotal+=fraction;}
+                            RequireSave(compositionTotal<=1.0001,"洞层样本气体比例之和无效");
+                        }
+                    }
                     RequireSave(regionIds.Count == savedRegionIds.Count,"探索区域数量不匹配");
                 }
                 ValidateRoomTopology(data);
@@ -149,10 +184,15 @@ namespace DeepPressure
                 RequireSave(room != null && world.IsInside(room.anchor) && room.cells > 0 && room.gas.IsFiniteAndNonnegative && SaveFinite(room.temperature) && room.temperature > -273.15,"气室数据无效");
                 int start = room.anchor.y*world.width+room.anchor.x;
                 RequireSave(data.terrain[start] == TerrainKind.Empty && !claimed[start],"气室锚点无效或重复");
-                queue.Enqueue(room.anchor); claimed[start] = true; int count = 0;
+                queue.Enqueue(room.anchor); claimed[start] = true; int count = 0; GasMixture cellTotal=default; double thermal=0;
                 while (queue.Count > 0)
                 {
                     var cell = queue.Dequeue(); count++;
+                    if(data.systemsRevision>=2&&data.lifeSupport)
+                    {
+                        int index=cell.y*world.width+cell.x;var gas=data.atmosphereCells[index];cellTotal+=gas;
+                        thermal+=gas.Total*(data.atmosphereTemperatures[index]+273.15);
+                    }
                     foreach (var direction in new[] { Vector2Int.left,Vector2Int.right,Vector2Int.up,Vector2Int.down })
                     {
                         var next = cell+direction; if (!world.IsInside(next)) continue; int index = next.y*world.width+next.x;
@@ -160,6 +200,12 @@ namespace DeepPressure
                     }
                 }
                 RequireSave(count == room.cells,"气室连通区域与保存的气体库存不匹配"); total += count;
+                if(data.systemsRevision>=2&&data.lifeSupport)
+                {
+                    for(int species=0;species<GasMixture.SpeciesCount;species++)
+                        RequireSave(Math.Abs(cellTotal[species]-room.gas[species])<=Math.Max(1e-6,Math.Abs(cellTotal[species])*1e-8),"气室汇总与逐格气体库存不一致");
+                    if(cellTotal.Total>1e-10)RequireSave(Math.Abs(thermal/cellTotal.Total-273.15-room.temperature)<=1e-5,"气室汇总温度与逐格温度不一致");
+                }
             }
             int expected = 0; foreach (var kind in data.terrain) if (kind == TerrainKind.Empty) expected++;
             RequireSave(total == expected,"存档缺少气室库存");

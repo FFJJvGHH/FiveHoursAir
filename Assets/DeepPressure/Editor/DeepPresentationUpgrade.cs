@@ -42,6 +42,7 @@ namespace DeepPressure.Editor
                 foreach(var worker in world.GetComponentsInChildren<DeepWorkerPresentation>(true))UpgradeWorker(worker);
                 foreach(var node in world.GetComponentsInChildren<GasNode>(true))
                     if(node.GetComponentInParent<DeepBuildingInstance>()==null)GroundLegacyNode(node,world);
+                GroundFurnishings(world);
                 EditorSceneManager.MarkSceneDirty(world.gameObject.scene);
             }
             AssetDatabase.SaveAssets();
@@ -62,6 +63,7 @@ namespace DeepPressure.Editor
             building.RefreshOwnedComponents();var definition=building.definition;
             Transform visual=building.visualRoot;
             if(definition.role==DeepBuildingRole.Light){MountLamp(building);return;}
+            if(definition.role==DeepBuildingRole.Vent){MountWallVent(building);return;}
             if(!definition.requiresFloor||definition.role==DeepBuildingRole.Floor||visual==null||visual==building.transform)return;
             var art=visual.GetComponentsInChildren<SpriteRenderer>(true).Where(IsIllustration).ToArray();
             if(art.Length==0)return;
@@ -90,7 +92,7 @@ namespace DeepPressure.Editor
             Rect local=OpaqueLocalBounds(main.sprite);
             float bottom=world.transform.InverseTransformPoint(main.transform.TransformPoint(new Vector3(local.center.x,local.yMin,0))).y;
             float target=placement.Bounds(world).yMin*world.cellSize+.003f*world.cellSize;
-            Vector3 deltaWorld=world.transform.up*(target-bottom);
+            Vector3 deltaWorld=world.transform.TransformVector(Vector3.up*(target-bottom));
             main.transform.position+=deltaWorld;
             Vector3 delta=node.transform.InverseTransformVector(deltaWorld);
             placement.inletOffset+=(Vector2)delta;placement.productOffset+=(Vector2)delta;placement.tailOffset+=(Vector2)delta;
@@ -104,6 +106,52 @@ namespace DeepPressure.Editor
             }
             var motion=node.GetComponent<DeepMachineMotion>();if(motion!=null&&motion.housing!=null){motion.housingRestPosition=motion.housing.localPosition;EditorUtility.SetDirty(motion);}
             EditorUtility.SetDirty(main.transform);EditorUtility.SetDirty(placement);
+        }
+
+        /// <summary>Only known floor furniture is eligible. Wall vents, lamps, machinery
+        /// attachments, carried parcels and shared decorative containers are never shifted.</summary>
+        static void GroundFurnishings(DeepPressureWorld world)
+        {
+            foreach(var renderer in world.GetComponentsInChildren<SpriteRenderer>(true))
+            {
+                if(!IsFloorFurnishing(renderer))continue;
+                Bounds bounds=Combined(new[]{renderer},world.transform);
+                if(!FindNearbySupport(world,bounds,out Vector2Int support))
+                {
+                    Debug.LogWarning("No nearby solid floor for authored furnishing: "+renderer.name,renderer);continue;
+                }
+                float target=(support.y+1)*world.cellSize+.003f*world.cellSize;
+                renderer.transform.position+=world.transform.TransformVector(Vector3.up*(target-bounds.min.y));
+                var mount=renderer.GetComponent<DeepFurnishingMount>();if(mount==null)mount=renderer.gameObject.AddComponent<DeepFurnishingMount>();
+                mount.artwork=renderer;mount.supportCell=support;
+                Rect local=OpaqueLocalBounds(renderer.sprite);mount.visibleFootLocalY=local.yMin;
+                Strip(renderer.transform,"Contact • furnishing shadow",new Vector2(local.center.x,local.yMin+.01f),new Vector2(local.width*.82f,.035f),new Color(.035f,.07f,.08f,.34f),renderer.sortingOrder-1);
+                EditorUtility.SetDirty(mount);EditorUtility.SetDirty(renderer.transform);
+                if(PrefabUtility.IsPartOfPrefabInstance(renderer))PrefabUtility.RecordPrefabInstancePropertyModifications(renderer.transform);
+            }
+        }
+        static bool IsFloorFurnishing(SpriteRenderer renderer)
+        {
+            if(renderer==null||renderer.sprite==null||renderer.GetComponentInParent<DeepBuildingInstance>()!=null||renderer.GetComponentInParent<DeepWorker>()!=null||renderer.GetComponentInParent<GasNode>()!=null)return false;
+            string path=AssetDatabase.GetAssetPath(renderer.sprite);
+            if(!path.StartsWith(Root+"/Art/Props/",StringComparison.Ordinal))return false;
+            string name=Path.GetFileNameWithoutExtension(path);
+            return name=="bunk_Color"||name=="planter_Color"||name=="console_Color"||name=="crate_Color";
+        }
+        static bool FindNearbySupport(DeepPressureWorld world,Bounds bounds,out Vector2Int support)
+        {
+            support=default;float best=float.PositiveInfinity,cell=world.cellSize;
+            int x=Mathf.FloorToInt(bounds.center.x/cell),nearY=Mathf.FloorToInt(bounds.min.y/cell);
+            // A bounded local repair, never teleport an intentionally placed object across floors.
+            for(int y=nearY;y>=nearY-2;y--)
+            {
+                var at=new Vector2Int(x,y);
+                if(!world.IsInside(at)||world.GetTerrain(x,y)==TerrainKind.Empty||world.GetTerrain(x,y+1)!=TerrainKind.Empty)continue;
+                float distance=(y+1)*cell-bounds.min.y;
+                if(distance>cell*.25f||distance< -cell*1.25f||Mathf.Abs(distance)>=best)continue;
+                support=at;best=Mathf.Abs(distance);
+            }
+            return !float.IsPositiveInfinity(best);
         }
 
         static void UpgradeWorker(DeepWorkerPresentation look)
@@ -149,6 +197,16 @@ namespace DeepPressure.Editor
             Vector2 center=ceiling?new Vector2(.5f,.90f):new Vector2(.5f,.72f);
             Strip(visual,"Mount • structural bracket",center,ceiling?new Vector2(.12f,.20f):new Vector2(.22f,.30f),new Color(.19f,.28f,.31f),9);
             if(ceiling)Strip(visual,"Mount • ceiling plate",new Vector2(.5f,.985f),new Vector2(.32f,.03f),new Color(.40f,.48f,.49f),9);
+        }
+        static void MountWallVent(DeepBuildingInstance building)
+        {
+            var visual=building.visualRoot;if(visual==null||visual==building.transform)return;
+            var art=visual.GetComponentsInChildren<SpriteRenderer>(true).Where(IsIllustration).ToArray();if(art.Length==0)return;
+            Bounds bounds=Combined(art,building.transform);
+            float factor=Mathf.Min(.82f/Mathf.Max(.01f,bounds.size.x),.78f/Mathf.Max(.01f,bounds.size.y));visual.localScale*=factor;
+            bounds=Combined(art,building.transform);visual.position+=building.transform.TransformVector(new Vector3(.5f-bounds.center.x,.53f-bounds.center.y,0));
+            for(int i=0;i<4;i++)Strip(visual,"Mount • vent bolt "+i,new Vector2(i%2==0?.14f:.86f,i<2?.22f:.84f),new Vector2(.045f,.045f),new Color(.71f,.78f,.75f),art[0].sortingOrder+3,building.transform);
+            DifferentiateRole(building,art[0]);InstrumentMachine(building,art[0]);EditorUtility.SetDirty(visual);
         }
         static void DifferentiateRole(DeepBuildingInstance building,SpriteRenderer main)
         {
@@ -270,7 +328,20 @@ namespace DeepPressure.Editor
                 }
                 report.AppendLine("PASS worker: "+look.frameAnchors.Length+" opaque frame anchors; idle/breathing baseline stable within .02 cells.");
             }
-            report.AppendLine("Checked "+checkedBuildings+" grounded prefabs; source image and normal/AO UVs unchanged.");return report.ToString();
+            int furnished=0;
+            foreach(var world in UnityEngine.Object.FindObjectsOfType<DeepPressureWorld>())
+                foreach(var renderer in world.GetComponentsInChildren<SpriteRenderer>(true))
+                {
+                    if(!IsFloorFurnishing(renderer))continue;
+                    var mount=renderer.GetComponent<DeepFurnishingMount>();
+                    if(mount==null||mount.artwork!=renderer)throw new InvalidOperationException("Authored furnishing lacks whole-object mounting: "+renderer.name);
+                    Bounds bounds=Combined(new[]{renderer},world.transform);
+                    float delta=(bounds.min.y-(mount.supportCell.y+1)*world.cellSize)/world.cellSize;
+                    if(world.GetTerrain(mount.supportCell.x,mount.supportCell.y)==TerrainKind.Empty||Mathf.Abs(delta)>.02f)
+                        throw new InvalidOperationException("Authored furnishing feet have no contact: "+renderer.name+" / "+delta.ToString("F4")+" cells");
+                    report.AppendLine("PASS "+renderer.name+" at "+mount.supportCell+": visible feet "+delta.ToString("F4")+" cells");furnished++;
+                }
+            report.AppendLine("Checked "+checkedBuildings+" grounded prefabs and "+furnished+" authored floor furnishings; source image and normal/AO UVs unchanged.");return report.ToString();
         }
     }
 }

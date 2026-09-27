@@ -103,6 +103,7 @@ namespace DeepPressure.Editor
             Worker(world,session,lit,new Vector2Int(31,53),"桐",new Color(.86f,.96f,1));
             Worker(world,session,lit,new Vector2Int(38,53),"洛",new Color(1,.9f,.76f));
             DeepParticleBaker.Attach(world);DeepPressureArtImporter.BindSecondaryTextures();
+            DeepIndustrialAuthoring.Upgrade(session);
             EditorUtility.SetDirty(level);AssetDatabase.SaveAssets();
         }
         static void Place(DeepGameplayCatalog catalog,string id,Vector2Int cell,Transform parent)

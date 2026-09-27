@@ -339,6 +339,8 @@ MonoBehaviour:
   isOn: 1
   isConstructed: 1
   powered: 0
+  batteryEnergy: 0
+  fuelSecondsRemaining: 0
   lights: []
   glowRenderers: []
   visualRoot: {fileID: 9088282391388017722}

@@ -131,7 +131,11 @@ TextureImporter:
     indices: 
     edges: []
     weights: []
-    secondaryTextures: []
+    secondaryTextures:
+    - texture: {fileID: 2800000, guid: 4bde3ecc2293ab742a06b064bd7affba, type: 3}
+      name: _NormalMap
+    - texture: {fileID: 2800000, guid: cef18633ce28b324a9eb8dd15e0cde2b, type: 3}
+      name: _AOMap
     nameFileIdTable: {}
   mipmapLimitGroupName: 
   pSDRemoveMatte: 0
