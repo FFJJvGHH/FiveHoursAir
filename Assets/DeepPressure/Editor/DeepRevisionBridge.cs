@@ -20,7 +20,14 @@ namespace DeepPressure.Editor
                 report.AppendLine(DeepPressureSelfTests.RunAll());
                 report.AppendLine(DeepGameplayTests.RunGameplayTests());
                 report.AppendLine(DeepPersistenceTests.RunAll());
+                report.AppendLine(DeepPowerTests.RunAll());
+                report.AppendLine(DeepExplorationTests.RunAll());
+                report.AppendLine(DeepAtmosphereTests.RunAll());
+                report.AppendLine(DeepLifeSupportTests.RunAll());
+                report.AppendLine(DeepHazardTests.RunAll());
+                report.AppendLine(DeepNetworkLifecycleTests.RunAll());
                 DeepColonyVerification.Run();report.AppendLine("PASS: actual scene colony workflow");
+                report.AppendLine(DeepPresentationUpgrade.ValidateCatalogGrounding(UnityEngine.Object.FindObjectOfType<DeepGameSession>().catalog));
                 report.AppendLine(DeepVisualValidation.ValidateActiveScene(out bool visual));
                 if(!visual)throw new InvalidOperationException("视觉资产或物体归属验证未通过。");
                 report.AppendLine("PASS: all automated checks. Inspect the Game view and exercise menu/save/load separately.");
@@ -32,7 +39,7 @@ namespace DeepPressure.Editor
         [MenuItem("深压/关卡/完成交互版本升级并保存")]
         public static void UpgradeAndSave()
         {
-            DeepWorldObjectAuthoring.UpgradeOpenScene();
+            DeepIndustrialAuthoring.Upgrade(UnityEngine.Object.FindObjectOfType<DeepGameSession>());
             EditorSceneManager.SaveScene(UnityEngine.SceneManagement.SceneManager.GetActiveScene());
             Debug.Log("地形、科技目录与完整灯具已升级并保存。可从 Play 的主菜单开始工程。");
         }
