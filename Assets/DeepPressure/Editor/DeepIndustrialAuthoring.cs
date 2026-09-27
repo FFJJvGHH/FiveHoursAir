@@ -19,22 +19,7 @@ namespace DeepPressure.Editor
                 if(region.stableId=="wet_basin")region.reactiveFractions=new Vector2(0,.08f);
                 EditorUtility.SetDirty(region);
             }
-            // Give the player a finite emergency buffer. New supply infrastructure remains a player decision.
-            if(!world.GetComponentsInChildren<DeepBuildingInstance>(true).Any(b=>b.name=="应急供气站"))
-            {
-                var workers=world.GetComponentsInChildren<DeepWorker>(true);
-                var focus=workers.Length>0?world.WorldToCell(workers[0].transform.position+Vector3.up*.1f):new Vector2Int(18,53);
-                var def=session.catalog.FindBuilding("supply_vent");
-                if(def!=null&&FindFloor(world,focus,def.footprint,out var cell))
-                {
-                    var go=(GameObject)PrefabUtility.InstantiatePrefab(def.prefab,world.gameObject.scene);go.transform.SetParent(world.transform,false);
-                    go.transform.position=session.BuildingPosition(cell);go.name="应急供气站";
-                    var b=go.GetComponent<DeepBuildingInstance>();b.definition=def;b.origin=cell;b.session=session;
-                    var node=go.GetComponentInChildren<GasNode>();
-                    if(node!=null){node.volumeM3=3;node.maxPressureKPa=900;node.initialPressureKPa=700;node.initialComposition=new Vector4(1,0,0,0);node.ResetInventory();EditorUtility.SetDirty(node);}
-                    EditorUtility.SetDirty(b);
-                }
-            }
+            // Upgrades only repair existing content. Life support is constructed by the player.
             DeepPresentationUpgrade.ApplyToCatalogAndLoadedScenes(session.catalog);
             EditorUtility.SetDirty(session);EditorSceneManager.MarkSceneDirty(world.gameObject.scene);AssetDatabase.SaveAssets();
         }

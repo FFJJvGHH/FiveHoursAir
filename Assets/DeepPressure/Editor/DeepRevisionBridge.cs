@@ -13,6 +13,8 @@ namespace DeepPressure.Editor
         public static void RunAll()
         {
             if(EditorApplication.isPlayingOrWillChangePlaymode)throw new InvalidOperationException("请先退出 Play，再运行编辑器验证。");
+            foreach(var building in UnityEngine.Object.FindObjectsOfType<DeepBuildingInstance>())
+                if(building.definition!=null&&building.definition.id=="printing_pod"){DeepOpeningVerification.Run();return;}
             string path=Path.GetFullPath(Path.Combine(Application.dataPath,"..","..","outputs","revision-full-validation.txt"));
             var report=new StringBuilder("深压 v0.4 完整验收\n"+DateTime.Now.ToString("O")+"\n");
             try

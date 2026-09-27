@@ -23,7 +23,7 @@ MonoBehaviour:
   requiresFloor: 1
   blocksMovement: 0
   role: 3
-  requiredTechId: 
+  requiredTechId: colony_planning
   cost:
   - item: {fileID: 11400000, guid: 15f167b5d4ca87f4393592342aad76b8, type: 2}
     amount: 8

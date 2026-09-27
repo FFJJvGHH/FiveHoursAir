@@ -13,9 +13,9 @@ MonoBehaviour:
   m_Name: fabricator
   m_EditorClassIdentifier: 
   id: fabricator
-  displayName: "\u5408\u6210\u53F0"
+  displayName: "\u624B\u5DE5\u5408\u6210\u53F0"
   category: "\u5236\u9020"
-  description: "\u6309\u914D\u65B9\u5904\u7406\u77FF\u77F3\u3001\u5408\u91D1\u4E0E\u7535\u5B50\u6A21\u5757\u3002\u8F93\u5165\u4E0D\u8DB3\u6216\u4ED3\u5E93\u6EE1\u65F6\u6682\u505C\u3002"
+  description: "\u4EBA\u5458\u624B\u5DE5\u52A0\u5DE5\u77FF\u77F3\u3001\u5408\u91D1\u4E0E\u7535\u5B50\u6A21\u5757\uFF1B\u65E0\u9700\u7535\u529B\u3002"
   icon: {fileID: 21300000, guid: 83ede679188465247a0ad9e15b1fb59f, type: 3}
   prefab: {fileID: 8999057841775301262, guid: 18751bb3dba271f41b5b18ed5c5ea8b8, type: 3}
   footprint: {x: 3, y: 2}
@@ -25,17 +25,18 @@ MonoBehaviour:
   role: 10
   requiredTechId: 
   cost:
-  - item: {fileID: 11400000, guid: 15f167b5d4ca87f4393592342aad76b8, type: 2}
-    amount: 6
-  - item: {fileID: 11400000, guid: d0962528e982fe748b8d7f0f945de416, type: 2}
-    amount: 2
+  - item: {fileID: 11400000, guid: 7f17c053bebcae846b93f55ae91dc661, type: 2}
+    amount: 10
   powerGenerated: 0
-  powerRequired: 4
+  powerRequired: 0
   fuelItem: {fileID: 0}
   fuelUnitsPerSecond: 0
+  batteryCapacity: 600
+  batteryTransferRate: 20
+  exchangesRoomGas: 0
+  gasMode: 4
+  gasAcceptance: 0
+  gasTransferMolPerSecond: 3
   storageCapacity: 0
-  ports:
-  - id: power_in
-    label: "\u7528\u7535"
-    kind: 2
-    localPosition: {x: 0.25, y: 0.15}
+  gasStorageVolume: 8
+  ports: []

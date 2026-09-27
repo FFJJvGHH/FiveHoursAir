@@ -12,7 +12,7 @@ namespace DeepPressure
         }
         public void SetWorkerPreference(DeepWorker worker,DeepWorkKind kind,int preference)
         {
-            if (worker == null || !Workers.Contains(worker)) return;
+            if (worker == null || !worker.IsAlive || !Workers.Contains(worker)) return;
             worker.nextWorkSearchTime = 0;
             int value = Mathf.Clamp(preference,0,3);
             switch (kind)
@@ -27,25 +27,26 @@ namespace DeepPressure
         }
         public bool RequestStop(DeepWorker worker,out string reason)
         {
-            if (worker == null || !Workers.Contains(worker)) { reason = "先选择一名工人"; return false; }
+            if (worker == null || !worker.IsAlive || !Workers.Contains(worker)) { reason = "先选择一名工人"; return false; }
             RequeueWorker(worker,"工人停止，工单保留并等待重新分配"); worker.automationPaused = true;
             reason = "已停止；未完成工单保留，点击继续自动工作"; return true;
         }
         public void ResumeWorker(DeepWorker worker)
         {
-            if (worker != null && Workers.Contains(worker)) { worker.automationPaused = false; worker.nextWorkSearchTime = 0; }
+            if (worker != null && worker.IsAlive && Workers.Contains(worker)) { worker.automationPaused = false; worker.nextWorkSearchTime = 0; }
         }
         public bool CanBuild(DeepBuildingDefinition definition,Vector2Int origin,out string reason)
         {
             InitializeSession(); reason = string.Empty;
             if (!initialized || definition == null || definition.prefab == null || definition.footprint.x < 1 || definition.footprint.y < 1) { reason = "建筑尚未配置"; return false; }
+            if (definition.id == "printing_pod") { reason = "打印舱为初始设备"; return false; }
             if (!IsTechUnlocked(definition.requiredTechId)) { reason = "需要科技："+TechnologyLabel(definition.requiredTechId); return false; }
             RectInt area = new RectInt(origin,definition.footprint);
             foreach (Vector2Int cell in area.allPositionsWithin)
             {
                 if (!world.IsInside(cell) || !IsKnown(cell)) { reason = "只能在已探明区域施工"; return false; }
                 if (world.GetTerrain(cell.x,cell.y) != TerrainKind.Empty || BuildingAt(cell) != null || placementClaims.ContainsKey(cell)) { reason = "位置已被占用"; return false; }
-                if (definition.blocksMovement) foreach (var worker in Workers) if (worker != null && (worker.Cell == cell || worker.Cell+Vector2Int.up == cell)) { reason = "位置有人占用"; return false; }
+                if (definition.blocksMovement) foreach (var worker in Workers) if (worker != null && worker.IsAlive && (worker.Cell == cell || worker.Cell+Vector2Int.up == cell)) { reason = "位置有人占用"; return false; }
             }
             if (definition.requiresFloor)
                 for (int x = area.xMin; x < area.xMax; x++) if (!IsSupport(new Vector2Int(x,area.yMin-1)) && !IsPlannedSupport(new Vector2Int(x,area.yMin-1))) { reason = "建筑底部需要地面或已规划的承重地板"; return false; }
@@ -81,7 +82,7 @@ namespace DeepPressure
         public bool RequestMove(DeepWorker worker,Vector2Int cell,out string reason)
         {
             InitializeSession(); reason = string.Empty;
-            if (worker == null || !Workers.Contains(worker) || !IsKnown(cell) || !IsStandable(cell)) { reason = "此处没有可站立的位置"; return false; }
+            if (worker == null || !worker.IsAlive || !Workers.Contains(worker) || !IsKnown(cell) || !IsStandable(cell)) { reason = "此处没有可站立的位置"; return false; }
             if (!DeepNavigation.TryFindPath(this,worker.Cell,new[] { cell },out var path)) { reason = "目的地不可达，需要地面或梯子"; return false; }
             RequeueWorker(worker,"等待重新认领");
             worker.automationPaused = false;
@@ -222,7 +223,7 @@ namespace DeepPressure
         {
             reachable = null;
             foreach (var worker in Workers)
-                if (worker != null && worker.isActiveAndEnabled && DeepNavigation.TryFindPath(this,worker.Cell,goals,out _) && (!requireMaterials || TryWarehousePath(worker,out _,out _))) { reachable = worker; return true; }
+                if (worker != null && worker.IsAlive && worker.isActiveAndEnabled && DeepNavigation.TryFindPath(this,worker.Cell,goals,out _) && (!requireMaterials || TryWarehousePath(worker,out _,out _))) { reachable = worker; return true; }
             return false;
         }
         bool FindReachableStation(DeepBuildingRole role,string requiredId,bool operational,out DeepBuildingInstance result,bool requireMaterials = false)

@@ -15,8 +15,7 @@ MonoBehaviour:
   id: research_bench
   displayName: "\u7814\u7A76\u53F0"
   category: "\u79D1\u7814"
-  description: "\u5DE5\u4EBA\u5728\u6B64\u6267\u884C\u7814\u7A76\u8BA2\u5355\uFF1B\u9700\u8981
-    5 \u5355\u4F4D\u7535\u529B\u548C\u8DB3\u591F\u7684\u7814\u7A76\u6750\u6599\u3002"
+  description: "\u4EBA\u5458\u6D88\u8017\u6750\u6599\u6267\u884C\u7814\u7A76\uFF0C\u65E0\u9700\u7535\u529B\u3002"
   icon: {fileID: 21300000, guid: 5906e8cc211a95a43bfc12b35405fe5d, type: 3}
   prefab: {fileID: 3258837901270369752, guid: 213bc5259253e7c4fb0f851377fcd53e, type: 3}
   footprint: {x: 2, y: 2}
@@ -26,17 +25,18 @@ MonoBehaviour:
   role: 4
   requiredTechId: 
   cost:
-  - item: {fileID: 11400000, guid: 15f167b5d4ca87f4393592342aad76b8, type: 2}
+  - item: {fileID: 11400000, guid: 7f17c053bebcae846b93f55ae91dc661, type: 2}
     amount: 8
-  - item: {fileID: 11400000, guid: d0962528e982fe748b8d7f0f945de416, type: 2}
-    amount: 4
   powerGenerated: 0
-  powerRequired: 5
+  powerRequired: 0
   fuelItem: {fileID: 0}
   fuelUnitsPerSecond: 0
+  batteryCapacity: 600
+  batteryTransferRate: 20
+  exchangesRoomGas: 0
+  gasMode: 4
+  gasAcceptance: 0
+  gasTransferMolPerSecond: 3
   storageCapacity: 0
-  ports:
-  - id: power_in
-    label: "\u7528\u7535"
-    kind: 2
-    localPosition: {x: 0.25, y: 0.15}
+  gasStorageVolume: 8
+  ports: []

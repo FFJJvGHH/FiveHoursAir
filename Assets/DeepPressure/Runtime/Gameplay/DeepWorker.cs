@@ -13,16 +13,20 @@ namespace DeepPressure
         [Header("工作偏好 · 0 禁用 / 1 低 / 2 正常 / 3 高")]
         [Range(0,3)] public int digPreference = 2, buildPreference = 2, researchPreference = 2, craftPreference = 2, pipePreference = 2;
         public bool automationPaused;
+        [Range(0,100)] public float health = 100;
+        [HideInInspector] public string deathCause;
+        [HideInInspector] public float diedAtSeconds = -1;
+        public bool IsAlive => health > 0;
         [HideInInspector] public float airReserveSeconds=90;
         [System.NonSerialized] public bool environmentUnsafe;
         [System.NonSerialized] public float environmentEfficiency=1;
         [System.NonSerialized] public DeepWorkOrder currentOrder;
         internal float nextWorkSearchTime;
         public DeepWorkOrder CurrentOrder => currentOrder;
-        public bool IsWorking => currentOrder != null && currentOrder.state == DeepWorkState.Working;
-        public bool IsMoving => currentOrder != null && currentOrder.state == DeepWorkState.Moving;
+        public bool IsWorking => IsAlive && currentOrder != null && currentOrder.state == DeepWorkState.Working;
+        public bool IsMoving => IsAlive && currentOrder != null && currentOrder.state == DeepWorkState.Moving;
         public Vector2Int Cell => session == null || session.world == null ? Vector2Int.zero : session.world.WorldToCell(transform.position+session.world.transform.up*session.world.cellSize*.05f);
-        public string Status => currentOrder == null ? (automationPaused ? "已停止 · 等待继续" : "待命 · 自动领取工作") : currentOrder.state == DeepWorkState.Moving ? (currentOrder.fetchingMaterials ? "前往仓库" : currentOrder.materialsCollected ? "搬运物料" : "前往工作地点") : currentOrder.state == DeepWorkState.Working ? currentOrder.label : currentOrder.statusReason;
+        public string Status => !IsAlive ? "已死亡 · "+deathCause : environmentUnsafe && airReserveSeconds <= 0 ? "窒息中" : currentOrder == null ? (automationPaused ? "已停止 · 等待继续" : "待命") : currentOrder.state == DeepWorkState.Moving ? (currentOrder.fetchingMaterials ? "前往仓库" : currentOrder.materialsCollected ? "搬运物料" : "前往工作地点") : currentOrder.state == DeepWorkState.Working ? currentOrder.label : currentOrder.statusReason;
         readonly Queue<Vector2Int> path = new Queue<Vector2Int>();
         public void SetPath(List<Vector2Int> cells) { path.Clear(); if (cells != null) foreach (var cell in cells) path.Enqueue(cell); }
         public Vector2Int[] CapturePath() => path.ToArray();

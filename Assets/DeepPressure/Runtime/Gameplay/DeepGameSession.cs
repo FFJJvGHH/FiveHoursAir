@@ -47,6 +47,7 @@ namespace DeepPressure
             if(network!=null)network.EnsureInitialized();
             exploration = world.GetComponent<DeepExploration>();
             initialized = true; inventory = inventory ?? new DeepInventory();
+            nextPrintingTime = Mathf.Max(1,printingIntervalSeconds);
             Workers.Clear(); Workers.AddRange(world.GetComponentsInChildren<DeepWorker>(true));
             foreach (var worker in Workers) worker.session = this;
             Buildings.Clear(); Buildings.AddRange(world.GetComponentsInChildren<DeepBuildingInstance>(true));
@@ -84,7 +85,7 @@ namespace DeepPressure
                     TryComplete(order);
             foreach (var worker in Workers)
             {
-                if (worker == null || !worker.isActiveAndEnabled) continue;
+                if (worker == null || !worker.isActiveAndEnabled || !worker.IsAlive) continue;
                 if (worker.ApplyGravity(DeltaTime)) continue;
                 if (worker.currentOrder == null) ClaimOrder(worker);
                 if (worker.currentOrder != null) TickWorker(worker,DeltaTime);

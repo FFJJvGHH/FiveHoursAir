@@ -20,7 +20,7 @@ namespace DeepPressure
         DeepWorker worker;
         Vector3 previous;
         float clock,walkCycle,workCycle,idleElapsed,personality;
-        bool wasWorking;
+        bool wasWorking,wasDead;
 
         void Start()
         {
@@ -39,6 +39,23 @@ namespace DeepPressure
         {
             if(worker==null||worker.visualRenderer==null)return;
             Vector3 delta=transform.position-previous;previous=transform.position;
+            if(!worker.IsAlive)
+            {
+                var fallen=worker.visualRenderer;
+                if(idle!=null)fallen.sprite=idle;
+                fallen.color=Color.Lerp(suitTint,new Color(.32f,.36f,.37f,1),.8f);
+                fallen.transform.localScale=authoredScale;
+                fallen.transform.localRotation=Quaternion.Euler(0,0,78);
+                fallen.transform.localPosition=groundedFootLocalPosition+new Vector3(.26f,.16f,0);
+                if(carriedCrate!=null)carriedCrate.gameObject.SetActive(false);
+                wasDead=true;return;
+            }
+            if(wasDead)
+            {
+                worker.visualRenderer.transform.localRotation=Quaternion.identity;
+                worker.visualRenderer.color=suitTint;
+                wasDead=false;wasWorking=false;idleElapsed=0;
+            }
             if(worker.session!=null&&worker.session.IsSimulationPaused)return;
             float dt=Time.deltaTime;if(dt<=0)return;
             clock+=dt;

@@ -41,6 +41,11 @@ namespace DeepPressure.Editor
             var data=Item(items,"research_data","研究数据","解析电子模块获得的记录；研究时消耗。",new Color(.68f,.59f,.91f),Art("Props/console_Color.png"));
             var fuel=Item(items,"fuel","燃料块","开采页岩获得的可燃物。发电机持续消耗；矿料压制可补充燃料。",new Color(.91f,.59f,.26f),TerrainIcon("Shale"));
             var reagent=Item(items,"process_reagent","工业凝剂","从架空工业蒸气中回收的密封原料。直接吸入有害，密封回收后可用于精密电子制造。",new Color(.67f,.53f,.85f),Art("Props/vent_Color.png"));
+            var algae=Item(items,"algae","藻类","供藻类制氧器消耗的生物原料，可在手工台培育补充。",new Color(.43f,.77f,.46f),Art("Props/planter_Color.png"));
+            var printingPod=Building(buildings,"printing_pod","人员打印舱","殖民",DeepBuildingRole.Storage,new Vector2Int(3,3),Art("Industrial/tank_Color.png"),null,30,true,false,Array.Empty<DeepItemAmount>(),
+                "定期提供人员候选。接纳新成员会持续增加氧气消耗；舱内保留 100 单位初始物资空间。",0,0,100);
+            var diffuser=Building(buildings,"oxygen_diffuser","藻类制氧器","生存",DeepBuildingRole.Structure,new Vector2Int(2,2),Art("Props/planter_Color.png"),null,7,true,false,new[]{Cost(ore,8)},
+                "消耗藻类向附近释放氧气。每份藻类提供 30 mol 氧气，最高 1.5 mol/s；气压或氧含量充足时暂停。",0,0);
 
             var lamp=Building(buildings,"lamp","工作灯","照明",DeepBuildingRole.Light,new Vector2Int(1,1),Art("Props/vent_Color.png"),null,3,false,false,new[]{Cost(alloy,1),Cost(electronics,1)},
                 "照亮工作区域。需要 1 单位电力，可以单独关闭。",0,1);
@@ -72,6 +77,7 @@ namespace DeepPressure.Editor
             Recipe(recipes,"assemble_electronics","组装电子元件","用合金材料组装标准电子模块（架空工艺）。",electronics.icon,new[]{Cost(alloy,2)},new[]{Cost(electronics,1)},12,fabricator.id);
             Recipe(recipes,"compile_research","解析研究数据","消耗电子模块以读取旧站记录。",data.icon,new[]{Cost(electronics,1)},new[]{Cost(data,2)},10,fabricator.id);
             Recipe(recipes,"press_fuel","压制燃料","从混合矿料中提取可燃组分：8 矿石 → 2 燃料。",fuel.icon,new[]{Cost(ore,8)},new[]{Cost(fuel,2)},12,fabricator.id);
+            Recipe(recipes,"cultivate_algae","培育藻类","以矿物养料扩培藻类：2 矿石 → 3 藻类。",algae.icon,new[]{Cost(ore,2)},new[]{Cost(algae,3)},8,fabricator.id);
             Recipe(recipes,"reagent_electronics","凝剂精密装配","密封工业凝剂用于材料处理：1 工业凝剂 + 2 合金 → 3 电子元件。",electronics.icon,new[]{Cost(reagent,1),Cost(alloy,2)},new[]{Cost(electronics,3)},14,fabricator.id,"material_processing");
 
             var advancedStorage=Building(buildings,"advanced_storage","分区仓库","物流",DeepBuildingRole.Storage,new Vector2Int(3,2),storage.icon,"colony_planning",12,true,false,new[]{Cost(alloy,10),Cost(electronics,1)},"提供 400 单位共享仓容，缓解采掘与生产堵塞。",0,0,400);
@@ -132,6 +138,20 @@ namespace DeepPressure.Editor
                 var processingTech=technologies.First(x=>x.id=="material_processing");processingTech.unlockBuildingIds=new[]{reclaimer.id};
                 processingTech.unlockRecipeIds=recipes.Where(x=>x!=null&&x.requiredTechId==processingTech.id).Select(x=>x.id).ToArray();EditorUtility.SetDirty(processingTech);
                 catalog.contentRevision=4;
+            }
+            if(catalog.contentRevision<5)
+            {
+                // Raw-material bootstrap: no electrical or refined-material prerequisite loop.
+                fabricator.displayName="手工合成台";fabricator.description="人员手工加工矿石、合金与电子模块；无需电力。";
+                fabricator.cost=new[]{Cost(ore,10)};fabricator.powerRequired=0;fabricator.ports=Array.Empty<DeepBuildingPort>();
+                desk.cost=new[]{Cost(ore,8)};desk.powerRequired=0;desk.ports=Array.Empty<DeepBuildingPort>();desk.description="人员消耗材料执行研究，无需电力。";
+                ladder.cost=new[]{Cost(ore,1)};floor.cost=new[]{Cost(ore,2)};storage.cost=new[]{Cost(ore,8)};
+                generator.requiredTechId="colony_planning";intake.requiredTechId="survey_basics";vent.requiredTechId="survey_basics";
+                diffuser.exchangesRoomGas=true;diffuser.gasTransferMolPerSecond=1.5f;diffuser.fuelItem=algae;
+                var planning=technologies.First(x=>x.id=="colony_planning");planning.unlockBuildingIds=new[]{storage.id,advancedStorage.id,generator.id};planning.description="建立仓储与基础供电，解锁燃料发电机。";
+                var survey=technologies.First(x=>x.id=="survey_basics");survey.unlockBuildingIds=new[]{tank.id,oxygenTank.id,intake.id,vent.id};
+                foreach(var definition in new[]{fabricator,desk,ladder,floor,storage,generator,intake,vent,diffuser,printingPod})EditorUtility.SetDirty(definition);
+                EditorUtility.SetDirty(planning);EditorUtility.SetDirty(survey);catalog.contentRevision=5;
             }
 
             catalog.items=items.Where(x=>x!=null).Distinct().ToArray();
@@ -239,7 +259,21 @@ namespace DeepPressure.Editor
                 float width=definition.footprint.x,height=definition.footprint.y;
                 Sprite fallback=definition.icon!=null?definition.icon:White();
                 var lights=new List<Light2D>();var glows=new List<SpriteRenderer>();
-                switch(definition.role)
+                if(definition.id=="printing_pod")
+                {
+                    // An authored capsule assembled from existing art and simple geometry.
+                    var capsule=Sprite(visual.transform,"Printing capsule",Art("Industrial/tank_Color.png"),Lit());Fit(capsule,new Vector2(1.5f,1.5f),new Vector2(2.7f,2.85f));
+                    RectSprite(visual.transform,"Pod plinth",new Vector2(1.5f,.15f),new Vector2(2.65f,.3f),new Color(.17f,.24f,.27f));
+                    var glass=RectSprite(visual.transform,"Bioprint chamber",new Vector2(1.5f,1.55f),new Vector2(.95f,1.5f),new Color(.25f,.84f,.75f,.48f));glass.sharedMaterial=Unlit();glass.sortingOrder=12;
+                    for(int i=0;i<3;i++)
+                    {
+                        var line=RectSprite(visual.transform,"Chamber scan "+i,new Vector2(1.5f,1.05f+i*.43f),new Vector2(.88f,.035f),new Color(.61f,1,.87f,.72f));line.sharedMaterial=Unlit();line.sortingOrder=13;
+                    }
+                    var console=Sprite(visual.transform,"Print controls",Art("Props/console_Color.png"),Lit());Fit(console,new Vector2(2.35f,.64f),new Vector2(.72f,1.05f));console.sortingOrder=14;
+                    var lightObject=new GameObject("Printing chamber light");lightObject.transform.SetParent(visual.transform,false);lightObject.transform.localPosition=new Vector3(1.5f,1.7f,-1);
+                    var light=lightObject.AddComponent<Light2D>();light.lightType=Light2D.LightType.Point;light.color=new Color(.51f,.90f,.78f);light.intensity=.8f;light.pointLightInnerRadius=.5f;light.pointLightOuterRadius=7;lights.Add(light);
+                }
+                else switch(definition.role)
                 {
                     case DeepBuildingRole.Ladder:
                         RectSprite(visual.transform,"Left rail",new Vector2(.23f,.5f),new Vector2(.08f,1),new Color(.56f,.65f,.68f));

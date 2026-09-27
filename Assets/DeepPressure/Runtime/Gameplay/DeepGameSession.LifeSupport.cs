@@ -13,7 +13,7 @@ namespace DeepPressure
         public float CarbonRemovalRate {get;private set;}
         public float StableAirSeconds {get;private set;}
         public int UnsafeWorkerCount {get;private set;}
-        public string AirStatus=>!lifeSupportEnabled?"环境预览":UnsafeWorkerCount>0?UnsafeWorkerCount+" 人气氛不适":"工作区气氛正常";
+        public string AirStatus=>!lifeSupportEnabled?"环境预览":IsColonyLost?"殖民地无人生还":UnsafeWorkerCount>0?UnsafeWorkerCount+" 人气氛不适":"工作区气氛正常";
         readonly Dictionary<DeepBuildingInstance,string> gasFacilityStatus=new Dictionary<DeepBuildingInstance,string>();
         DeepAtmosphereField atmosphere;
         public DeepAtmosphereField Atmosphere
@@ -43,6 +43,7 @@ namespace DeepPressure
             foreach(var building in Buildings)
             {
                 if(building==null||building.definition==null||!building.definition.exchangesRoomGas)continue;
+                if(building.definition.id=="oxygen_diffuser"){TickOxygenDiffuser(building,field,dt);continue;}
                 var def=building.definition;var node=building.GetComponentInChildren<GasNode>();
                 if(node==null)continue;
                 if(!building.IsOperational){gasFacilityStatus[building]=building.isOn?"等待供电":"已关闭";continue;}
@@ -88,20 +89,49 @@ namespace DeepPressure
             }
             foreach(var worker in Workers)
             {
-                if(worker==null||!worker.isActiveAndEnabled)continue;
+                if(worker==null||!worker.isActiveAndEnabled||!worker.IsAlive)continue;
                 var local=field.Sample(worker.Cell);double pressure=field.PressureKPa(worker.Cell),total=local.Total;
                 double oxygen=total>0?pressure*local.oxygen/total:0;
                 bool safe=total>0&&pressure>=55&&pressure<=180&&oxygen>=12&&oxygen<=32&&local.carbonDioxide/total<.075&&local.processVapor/total<.015;
                 worker.environmentUnsafe=!safe;
                 if(safe)worker.airReserveSeconds=Mathf.Min(90,worker.airReserveSeconds+dt*2);
-                else{UnsafeWorkerCount++;worker.airReserveSeconds=Mathf.Max(0,worker.airReserveSeconds-dt);}
+                else
+                {
+                    UnsafeWorkerCount++;
+                    float unprotected=Mathf.Max(0,dt-worker.airReserveSeconds);
+                    worker.airReserveSeconds=Mathf.Max(0,worker.airReserveSeconds-dt);
+                    if(unprotected>0)DamageWorker(worker,unprotected*Mathf.Max(0,suffocationDamagePerSecond),"窒息");
+                    if(!worker.IsAlive){UnsafeWorkerCount--;continue;}
+                }
                 worker.environmentEfficiency=!safe&&worker.airReserveSeconds<25?.5f:1;
                 double used=field.TakeSpecies(worker.Cell,0,Math.Max(0,breathingMolPerSecond)*dt).oxygen;
                 field.Add(worker.Cell,new GasMixture{carbonDioxide=used});
-                OxygenDemandRate+=(float)used/dt;
+                OxygenDemandRate+=Mathf.Max(0,breathingMolPerSecond);
             }
-            StableAirSeconds=UnsafeWorkerCount==0&&Workers.Count>0?StableAirSeconds+dt:0;
+            OxygenDemandRate=AliveWorkerCount*Mathf.Max(0,breathingMolPerSecond);
+            StableAirSeconds=UnsafeWorkerCount==0&&AliveWorkerCount>0?StableAirSeconds+dt:0;
             field.Tick(dt);TickGasHazards(dt);field.SyncRooms();
+        }
+        void TickOxygenDiffuser(DeepBuildingInstance building,DeepAtmosphereField field,float dt)
+        {
+            if(!building.IsOperational){gasFacilityStatus[building]="已关闭";return;}
+            if(world.RoomAt(building.origin)==null){gasFacilityStatus[building]="出口被阻挡";return;}
+            var local=field.Sample(building.origin);double pressure=field.PressureKPa(building.origin);
+            double oxygenPressure=local.Total>0?pressure*local.oxygen/local.Total:0;
+            if(pressure>=135||oxygenPressure>=23){gasFacilityStatus[building]="气压已满足";return;}
+            float rate=Mathf.Max(.01f,building.definition.gasTransferMolPerSecond);
+            // Each prepaid unit of algae contains a finite 30 mol oxygen budget.
+            if(building.fuelSecondsRemaining<=0)
+            {
+                var algae=building.definition.fuelItem;
+                if(algae==null||!inventory.TryConsume(algae,1)){gasFacilityStatus[building]="等待藻类";return;}
+                building.fuelSecondsRemaining=30/rate;
+            }
+            double capacity=Math.Max(0,GasMixture.FromPressure(23,field.CellVolumeM3,field.TemperatureC(building.origin),new Vector4(1,0,0,0)).oxygen-local.oxygen);
+            double amount=Math.Min(capacity,Math.Min(dt,building.fuelSecondsRemaining)*rate);
+            building.fuelSecondsRemaining=Mathf.Max(0,building.fuelSecondsRemaining-(float)amount/rate);
+            field.Add(building.origin,new GasMixture{oxygen=amount});OxygenSupplyRate+=(float)amount/dt;
+            gasFacilityStatus[building]="藻类制氧 · "+((float)amount/dt).ToString("0.00")+" mol/s";
         }
     }
 }

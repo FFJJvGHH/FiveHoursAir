@@ -65,6 +65,9 @@ MonoBehaviour:
   craftPreference: 2
   pipePreference: 2
   automationPaused: 0
+  health: 100
+  deathCause: 
+  diedAtSeconds: -1
   airReserveSeconds: 90
 --- !u!114 &2895522991833116348
 MonoBehaviour:

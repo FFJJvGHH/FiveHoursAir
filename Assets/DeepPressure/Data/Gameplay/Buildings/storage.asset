@@ -25,11 +25,18 @@ MonoBehaviour:
   role: 8
   requiredTechId: 
   cost:
-  - item: {fileID: 11400000, guid: 15f167b5d4ca87f4393592342aad76b8, type: 2}
-    amount: 6
+  - item: {fileID: 11400000, guid: 7f17c053bebcae846b93f55ae91dc661, type: 2}
+    amount: 8
   powerGenerated: 0
   powerRequired: 0
   fuelItem: {fileID: 0}
   fuelUnitsPerSecond: 0
+  batteryCapacity: 600
+  batteryTransferRate: 20
+  exchangesRoomGas: 0
+  gasMode: 4
+  gasAcceptance: 0
+  gasTransferMolPerSecond: 3
   storageCapacity: 200
+  gasStorageVolume: 8
   ports: []

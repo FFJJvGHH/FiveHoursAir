@@ -29,17 +29,12 @@ namespace DeepPressure.Editor
         {
             var level=DefaultLevel();var catalog=DeepCatalogBuilder.CreateOrUpdateCatalog();level.catalog=catalog;world.levelDefinition=level;
             var tiles=DeepTerrainArtBaker.Prepare();
-            Vector2Int offset=level.starterBaseOffset;Vector3 shift=new Vector3(offset.x,offset.y,0);
-            int oldWidth=world.width,oldHeight=world.height;var old=(TerrainKind[])world.terrainKinds.Clone();
-            foreach(Transform child in world.transform)
-            {
-                if(child.GetComponent<Grid>()!=null||child.name.StartsWith("02")||child.name.StartsWith("07"))continue;
-                child.position+=shift;
-            }
-            foreach(var region in world.GetComponentsInChildren<DeepPressureRegion>())region.bounds=new RectInt(region.bounds.position+offset,region.bounds.size);
-            foreach(var line in world.GetComponentsInChildren<LineRenderer>())
-            {if(!line.useWorldSpace)continue;for(int i=0;i<line.positionCount;i++)line.SetPosition(i,line.GetPosition(i)+shift);}
-            foreach(var route in world.GetComponentsInChildren<DeepPipeRoute>())route.CaptureEndpoints();
+            // The demo builder supplies rendering infrastructure only. Its ready-made station,
+            // gas inventory, pipes, furnishings and fixtures are not part of a new colony.
+            foreach(Transform child in world.transform.Cast<Transform>().ToArray())
+                if(child.name.StartsWith("02")||child.name.StartsWith("03")||child.name.StartsWith("04"))UnityEngine.Object.DestroyImmediate(child.gameObject);
+            foreach(var light in world.GetComponentsInChildren<Light2D>().ToArray())
+                if(light.lightType!=Light2D.LightType.Global)UnityEngine.Object.DestroyImmediate(light.transform.parent.gameObject);
             world.width=Mathf.Max(96,level.width);world.height=Mathf.Max(60,level.height);
             world.terrain.ClearAllTiles();world.background.ClearAllTiles();world.terrainKinds=new TerrainKind[world.width*world.height];
             var cells=new Vector3Int[world.width*world.height];var foreground=new UnityEngine.Tilemaps.TileBase[cells.Length];var back=new UnityEngine.Tilemaps.TileBase[cells.Length];
@@ -54,8 +49,6 @@ namespace DeepPressure.Editor
                 foreground[i]=tiles[(int)kind];back[i]=tiles[(int)TerrainKind.Basalt];
             }
             world.terrain.SetTiles(cells,foreground);world.background.SetTiles(cells,back);
-            for(int y=0;y<oldHeight;y++)for(int x=0;x<oldWidth;x++)
-            {var kind=old[y*oldWidth+x];if(kind==TerrainKind.Empty||kind==TerrainKind.Metal)world.terrain.SetTile(new Vector3Int(x+offset.x,y+offset.y,0),kind==TerrainKind.Empty?null:tiles[(int)kind]);}
             if(level.caves!=null)foreach(var cave in level.caves)
             {
                 RectInt rect=cave.bounds;
@@ -67,41 +60,33 @@ namespace DeepPressure.Editor
                 var go=new GameObject(cave.displayName);go.transform.SetParent(world.transform,false);var region=go.AddComponent<DeepPressureRegion>();
                 region.stableId=cave.id;region.displayName=cave.displayName;region.bounds=cave.bounds;region.composition=cave.composition;region.initialPressureKPa=cave.pressureKPa;region.initialTemperatureC=cave.temperatureC;
             }
-            // An empty construction hall has proper flooring and a two-cell-high route to the factory.
-            for(int y=53;y<60;y++)for(int x=5;x<18;x++)world.terrain.SetTile(new Vector3Int(x,y,0),null);
-            for(int x=5;x<18;x++)world.terrain.SetTile(new Vector3Int(x,52,0),tiles[(int)TerrainKind.Metal]);
-            for(int y=64;y<68;y++)for(int x=40;x<47;x++)world.terrain.SetTile(new Vector3Int(x,y,0),null);
-            for(int x=40;x<44;x++)world.terrain.SetTile(new Vector3Int(x,63,0),tiles[(int)TerrainKind.Metal]);
-            world.terrain.SetTile(new Vector3Int(43,52,0),tiles[(int)TerrainKind.Metal]);
-            var hallObject=new GameObject("建造大厅");hallObject.transform.SetParent(world.transform,false);var hall=hallObject.AddComponent<DeepPressureRegion>();hall.stableId="construction_hall";hall.displayName="建造大厅";hall.bounds=new RectInt(5,53,13,7);hall.initialPressureKPa=100;hall.composition=new Vector4(.21f,.78f,.01f,0);
+            // A finite pocket of breathable air, with room to choose the first buildings.
+            // The floor remains natural rock; all manufactured infrastructure is player-built.
+            for(int x=20;x<=45;x++)
+            {
+                int ceiling=59+Mathf.RoundToInt(1.4f*Mathf.Sin((x-20)*.31f));
+                if(x<23||x>42)ceiling-=2;
+                for(int y=53;y<=ceiling;y++)world.terrain.SetTile(new Vector3Int(x,y,0),null);
+                world.terrain.SetTile(new Vector3Int(x,52,0),tiles[(int)TerrainKind.Sandstone]);
+            }
+            var startObject=new GameObject("初生洞穴");startObject.transform.SetParent(world.transform,false);
+            var starter=startObject.AddComponent<DeepPressureRegion>();starter.stableId="starter_cavern";starter.displayName="初生洞穴";
+            starter.bounds=new RectInt(20,53,26,9);starter.initialPressureKPa=100;starter.initialTemperatureC=22;starter.composition=new Vector4(.21f,.79f,0,0);
             world.SyncTerrainFromTilemap();world.RebuildRooms();
-            var explore=world.GetComponent<DeepExploration>();explore.initialExploredAreas=new[]{new RectInt(3,50,49,28),new RectInt(42,43,7,10)};
+            var explore=world.GetComponent<DeepExploration>();explore.initialExploredAreas=new[]{new RectInt(18,50,30,14)};
             foreach(var sr in new[]{explore.fogRenderer,explore.gasRenderer})
             {sr.transform.position=world.transform.TransformPoint(new Vector3(world.width*.5f,world.height*.5f,0));sr.transform.localScale=new Vector3(world.width/sr.sprite.bounds.size.x,world.height/sr.sprite.bounds.size.y,1);}
-            camera.transform.position=world.transform.TransformPoint(new Vector3(31,60,-20));camera.orthographicSize=15.8f;
+            camera.transform.position=world.transform.TransformPoint(new Vector3(33,57,-20));camera.orthographicSize=11.5f;
             var session=world.gameObject.AddComponent<DeepGameSession>();session.world=world;session.network=world.GetComponent<GasNetworkSimulator>();session.catalog=catalog;
-            session.baseStorageCapacity=40;session.startingInventory=new[]{new DeepItemAmount(catalog.FindItem("ore"),90),new DeepItemAmount(catalog.FindItem("alloy"),65),new DeepItemAmount(catalog.FindItem("electronics"),12),new DeepItemAmount(catalog.FindItem("research_data"),4)};
+            session.baseStorageCapacity=0;session.startingInventory=new[]{new DeepItemAmount(catalog.FindItem("ore"),50),new DeepItemAmount(catalog.FindItem("algae"),30)};
+            session.initialUnlockedTechIds=Array.Empty<string>();session.powerContentRevision=1;session.useWiredPower=true;
             session.excavationItem=catalog.FindItem("ore");session.constructedFloorTile=tiles[(int)TerrainKind.Metal];
             var buildings=new GameObject("09 • Buildings from content catalog");buildings.transform.SetParent(world.transform,false);
-            Place(catalog,"storage",new Vector2Int(18,53),buildings.transform);
-            Place(catalog,"fabricator",new Vector2Int(27,53),buildings.transform);
-            Place(catalog,"generator",new Vector2Int(39,53),buildings.transform);
-            Place(catalog,"generator",new Vector2Int(7,53),buildings.transform);
-            foreach(var sr in world.GetComponentsInChildren<SpriteRenderer>().ToArray())
-                if(sr.name=="Ladder rung"||sr.name=="Ladder rail"||(sr.name=="Furnishing • crate"&&sr.transform.position.y>50))UnityEngine.Object.DestroyImmediate(sr.gameObject);
-            for(int y=44;y<71;y++)Place(catalog,"ladder",new Vector2Int(44,y),buildings.transform);
-            foreach(var node in world.GetComponentsInChildren<GasNode>().ToArray())
-            {
-                if(node.GetComponentInParent<DeepBuildingInstance>()!=null||node.kind==GasNodeKind.Reservoir)continue;
-                string id=node.kind==GasNodeKind.Separator?"gas_separator":node.kind==GasNodeKind.Regulator?"gas_regulator":"gas_tank";
-                var definition=catalog.FindBuilding(id);var cell=world.WorldToCell(node.transform.position)+new Vector2Int(-definition.footprint.x/2,-2);
-                var wrapper=new GameObject(definition.displayName);wrapper.transform.SetParent(buildings.transform,false);wrapper.transform.position=new Vector3(cell.x,cell.y,0);
-                node.transform.SetParent(wrapper.transform,true);var instance=wrapper.AddComponent<DeepBuildingInstance>();instance.definition=definition;instance.origin=cell;instance.visualRoot=node.transform;
-            }
+            Place(catalog,"printing_pod",new Vector2Int(31,53),buildings.transform);
             DeepWorldObjectAuthoring.RepairWorld(world,catalog,buildings.transform);
-            Worker(world,session,lit,new Vector2Int(24,53),"阿砾",Color.white);
-            Worker(world,session,lit,new Vector2Int(31,53),"桐",new Color(.86f,.96f,1));
-            Worker(world,session,lit,new Vector2Int(38,53),"洛",new Color(1,.9f,.76f));
+            Worker(world,session,lit,new Vector2Int(28,53),"阿砾",Color.white);
+            Worker(world,session,lit,new Vector2Int(30,53),"桐",new Color(.86f,.96f,1));
+            Worker(world,session,lit,new Vector2Int(36,53),"洛",new Color(1,.9f,.76f));
             DeepParticleBaker.Attach(world);DeepPressureArtImporter.BindSecondaryTextures();
             DeepIndustrialAuthoring.Upgrade(session);
             EditorUtility.SetDirty(level);AssetDatabase.SaveAssets();

@@ -14,7 +14,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   id: colony_planning
   displayName: "\u6B96\u6C11\u89C4\u5212"
-  description: "\u6574\u7406\u5EFA\u9020\u4E0E\u7269\u8D44\u901A\u8DEF\uFF0C\u4E3A\u6269\u5EFA\u57FA\u5730\u5EFA\u7ACB\u4ED3\u50A8\u7F13\u51B2\u3002"
+  description: "\u5EFA\u7ACB\u4ED3\u50A8\u4E0E\u57FA\u7840\u4F9B\u7535\uFF0C\u89E3\u9501\u71C3\u6599\u53D1\u7535\u673A\u3002"
   icon: {fileID: 21300000, guid: b0dec3ad43aa38340ae5fba2d421f104, type: 3}
   branch: "\u6B96\u6C11\u5DE5\u7A0B"
   tier: 0
@@ -24,5 +24,7 @@ MonoBehaviour:
   - item: {fileID: 11400000, guid: 7f17c053bebcae846b93f55ae91dc661, type: 2}
     amount: 8
   unlockBuildingIds:
+  - storage
   - advanced_storage
+  - generator
   unlockRecipeIds: []

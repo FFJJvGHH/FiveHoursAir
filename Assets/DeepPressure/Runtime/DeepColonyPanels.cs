@@ -347,7 +347,7 @@ namespace DeepPressure
             if(e.type==EventType.MouseDown&&e.button==1)
             {
                 if(colonyTool!=ColonyTool.None||tool!=ToolMode.None){colonyTool=ColonyTool.None;tool=ToolMode.None;buildChoice=null;pipeSource=null;e.Use();return true;}
-                if(!blocked&&selectedWorker!=null)
+                if(!blocked&&selectedWorker!=null&&selectedWorker.IsAlive)
                 {bool ok=session.RequestMove(selectedWorker,world.WorldToCell(PointerWorld(pointer)),out string reason);ShowToast(reason,ok);e.Use();return true;}
             }
             if(blocked)return false;
@@ -379,10 +379,12 @@ namespace DeepPressure
         Rect ColonySelectionRect()
         {
             Vector3 position=selectedWorker!=null?selectedWorker.transform.position:selectedOrder!=null?world.CellToWorld(selectedOrder.targetCell):selectedBuilding.transform.position;
-            Vector2 p=WorldPoint(position);float height=selectedWorker!=null?320:selectedOrder!=null?262:selectedBuilding.GetComponentInChildren<GasNode>()!=null?580:selectedBuilding.definition!=null&&selectedBuilding.definition.role==DeepBuildingRole.Storage?365:330;
+            Vector2 p=WorldPoint(position);float height=selectedWorker!=null?(selectedWorker.IsAlive?350:225):selectedOrder!=null?262:selectedBuilding.definition!=null&&selectedBuilding.definition.id=="printing_pod"?470:selectedBuilding.GetComponentInChildren<GasNode>()!=null?580:selectedBuilding.definition!=null&&selectedBuilding.definition.role==DeepBuildingRole.Storage?365:330;
             float x=p.x+38;if(x+254>uiWidth-16)x=p.x-292;
             if(colonyPanel!=ColonyPanel.None&&x<colonyRect.xMax+12)x=colonyRect.xMax+14;
-            return new Rect(Mathf.Clamp(x,16,uiWidth-270),Mathf.Clamp(p.y-height*.5f,74,uiHeight-height-97),254,height);
+            Rect result=new Rect(Mathf.Clamp(x,16,uiWidth-270),Mathf.Clamp(p.y-height*.5f,74,uiHeight-height-97),254,height);
+            if(colonyPanel==ColonyPanel.None&&result.Overlaps(MissionRect))result.x=Mathf.Max(16,MissionRect.x-result.width-12);
+            return result;
         }
         void DrawColonySelectionCard(float x,ref float y)
         {
@@ -396,7 +398,13 @@ namespace DeepPressure
             if(selectedWorker!=null)
             {
                 CardTitle(x,ref y,Icon.Person,selectedWorker.displayName);
-                Label(new Rect(x,y,220,26),selectedWorker.Status,body,White);y+=33;
+                Label(new Rect(x,y,220,26),selectedWorker.Status,body,selectedWorker.IsAlive?White:Amber);y+=33;
+                if(!selectedWorker.IsAlive)
+                {
+                    Label(new Rect(x,y,220,24),"已故 · "+selectedWorker.deathCause,body,Amber);y+=34;
+                    Label(new Rect(x,y,220,24),"耗氧 0 mol/s",small,Muted);return;
+                }
+                Label(new Rect(x,y,220,24),"生命 "+selectedWorker.health.ToString("0")+" / 100  ·  耗氧 "+session.breathingMolPerSecond.ToString("0.00"),small,selectedWorker.health<35?Amber:Mint);y+=30;
                 if(selectedWorker.currentOrder!=null&&!selectedWorker.currentOrder.IsTerminal){DrawOrderRow(selectedWorker.currentOrder,new Rect(x,y,220,55));y+=65;}
                 else{Label(new Rect(x,y,220,26),"等待新任务",small,Muted);y+=45;}
                 Label(new Rect(x,y,220,24),"右键地点 · 派遣移动",small,Mint);y+=32;
@@ -407,6 +415,7 @@ namespace DeepPressure
             }
             var building=selectedBuilding;if(building==null||building.definition==null)return;
             var definition=building.definition;CardTitle(x,ref y,BuildingIcon(definition.role),definition.displayName);
+            if(definition.id=="printing_pod"){DrawPrintingPodCard(x,ref y);return;}
             Label(new Rect(x,y,220,23),BuildingStatus(building),body,building.IsOperational?Mint:Amber);y+=30;
             if(definition.role==DeepBuildingRole.Storage)
             {

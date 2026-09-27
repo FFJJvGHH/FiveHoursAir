@@ -1,0 +1,43 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 6c73d5aa9d8782e46a76fc0855dcb0a9, type: 3}
+  m_Name: oxygen_diffuser
+  m_EditorClassIdentifier: 
+  id: oxygen_diffuser
+  displayName: "\u85FB\u7C7B\u5236\u6C27\u5668"
+  category: "\u751F\u5B58"
+  description: "\u6D88\u8017\u85FB\u7C7B\u5411\u9644\u8FD1\u91CA\u653E\u6C27\u6C14\u3002\u6BCF\u4EFD\u85FB\u7C7B\u63D0\u4F9B
+    30 mol \u6C27\u6C14\uFF0C\u6700\u9AD8 1.5 mol/s\uFF1B\u6C14\u538B\u6216\u6C27\u542B\u91CF\u5145\u8DB3\u65F6\u6682\u505C\u3002"
+  icon: {fileID: 21300000, guid: 74f3b614175d4c54fad1b95c0595bc9f, type: 3}
+  prefab: {fileID: 7490009150516012210, guid: ea1985fde0cde284d8e45621451d667a, type: 3}
+  footprint: {x: 2, y: 2}
+  workSeconds: 7
+  requiresFloor: 1
+  blocksMovement: 0
+  role: 0
+  requiredTechId: 
+  cost:
+  - item: {fileID: 11400000, guid: 7f17c053bebcae846b93f55ae91dc661, type: 2}
+    amount: 8
+  powerGenerated: 0
+  powerRequired: 0
+  fuelItem: {fileID: 11400000, guid: ced0d55b15f26804fbd882ed032dbe62, type: 2}
+  fuelUnitsPerSecond: 0
+  batteryCapacity: 600
+  batteryTransferRate: 20
+  exchangesRoomGas: 1
+  gasMode: 4
+  gasAcceptance: 0
+  gasTransferMolPerSecond: 1.5
+  storageCapacity: 0
+  gasStorageVolume: 8
+  ports: []

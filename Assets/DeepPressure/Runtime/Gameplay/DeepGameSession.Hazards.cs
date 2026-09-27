@@ -80,7 +80,8 @@ namespace DeepPressure
         {
             foreach (var worker in Workers)
             {
-                if (worker == null || Vector2Int.Distance(worker.Cell,cell) > 2.5f+strength*.25f) continue;
+                if (worker == null || !worker.IsAlive || Vector2Int.Distance(worker.Cell,cell) > 2.5f+strength*.25f) continue;
+                DamageWorker(worker,strength*7,"气压冲击"); if(!worker.IsAlive)continue;
                 worker.airReserveSeconds = Mathf.Max(0,worker.airReserveSeconds-8*strength);
                 Vector2Int step = Mathf.Abs(direction.x) >= Mathf.Abs(direction.y) ? new Vector2Int(direction.x >= 0 ? 1 : -1,0) : new Vector2Int(0,direction.y >= 0 ? 1 : -1);
                 var target = worker.Cell+step;

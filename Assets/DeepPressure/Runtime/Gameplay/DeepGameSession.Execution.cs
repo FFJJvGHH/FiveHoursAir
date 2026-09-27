@@ -6,7 +6,7 @@ namespace DeepPressure
     {
         void ClaimOrder(DeepWorker worker)
         {
-            if (worker.automationPaused || SimulationTime < worker.nextWorkSearchTime) return;
+            if (!worker.IsAlive || worker.automationPaused || SimulationTime < worker.nextWorkSearchTime) return;
             DeepWorkOrder selected = null;
             List<Vector2Int> selectedPath = null;
             Vector2Int selectedWork = default,selectedPickup = default;
@@ -19,7 +19,7 @@ namespace DeepPressure
                 if (preference == 0)
                 {
                     bool enabled = false;
-                    foreach (var otherWorker in Workers) if (otherWorker != null && otherWorker.isActiveAndEnabled && !otherWorker.automationPaused && otherWorker.GetPreference(order.kind) > 0) { enabled = true; break; }
+                    foreach (var otherWorker in Workers) if (otherWorker != null && otherWorker.IsAlive && otherWorker.isActiveAndEnabled && !otherWorker.automationPaused && otherWorker.GetPreference(order.kind) > 0) { enabled = true; break; }
                     if (!enabled) { order.state = DeepWorkState.Blocked; order.statusReason = "没有启用此工种的工人"; }
                     continue;
                 }
@@ -146,7 +146,7 @@ namespace DeepPressure
                     if (def.requiresFloor)
                         for (int x = area.xMin; x < area.xMax; x++) if (!IsSupport(new Vector2Int(x,area.yMin-1))) return BlockFinished(order,"施工支撑已失效，等待地板修复");
                     if (def.blocksMovement)
-                        foreach (var worker in Workers) if (worker != null && (area.Contains(worker.Cell) || area.Contains(worker.Cell+Vector2Int.up)))
+                        foreach (var worker in Workers) if (worker != null && worker.IsAlive && (area.Contains(worker.Cell) || area.Contains(worker.Cell+Vector2Int.up)))
                             return BlockFinished(order,"等待人员离开施工范围");
                     GameObject go = Instantiate(def.prefab,BuildingPosition(order.targetCell),world.transform.rotation,world.transform);
                     go.name = def.displayName; go.SetActive(true);
@@ -155,7 +155,7 @@ namespace DeepPressure
                     instance.lights = go.GetComponentsInChildren<UnityEngine.Rendering.Universal.Light2D>(true);
                     foreach (var node in go.GetComponentsInChildren<GasNode>(true)) { node.initialPressureKPa = 0; node.ResetInventory(); }
                     Buildings.Add(instance); ReleaseClaims(order); RebuildOccupancy();
-                    if (def.role == DeepBuildingRole.Floor || def.role == DeepBuildingRole.Structure)
+                    if (def.role == DeepBuildingRole.Floor || def.role == DeepBuildingRole.Structure && def.blocksMovement)
                     {
                         foreach (Vector2Int cell in area.allPositionsWithin) PaintConstructionCell(cell);
                         RefreshWorldAfterTerrain(order.targetCell);

@@ -30,6 +30,7 @@ namespace DeepPressure
         public float cameraSize;
         public int overlay;
         public int systemsRevision;
+        public float nextPrintingTime; public int printingGeneration;
         public bool wiredPower,lifeSupport;
         public Vector2Int[] wires;
         public DeepProductionTarget[] production;
@@ -70,6 +71,7 @@ namespace DeepPressure
         public int digPreference,buildPreference,researchPreference,craftPreference,pipePreference;
         public bool automationPaused;
         public float airReserveSeconds=90;
+        public float health=100,diedAtSeconds=-1; public string deathCause;
         public float nextWorkSearchTime,environmentEfficiency = 1;
         public bool environmentUnsafe;
     }

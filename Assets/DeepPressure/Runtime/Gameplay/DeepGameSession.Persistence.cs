@@ -105,7 +105,7 @@ namespace DeepPressure
                 exploration = exploration == null ? null : exploration.CaptureDiscovery(),
                 hasCamera = camera != null,cameraPosition = camera == null ? Vector3.zero : camera.transform.position,cameraSize = camera == null ? 12 : camera.orthographicSize,
                 overlay = hud == null ? 0 : (int)hud.overlay,
-                systemsRevision=2,wiredPower=useWiredPower,lifeSupport=lifeSupportEnabled,wires=completedWireCells.ToArray(),
+                systemsRevision=3,nextPrintingTime=nextPrintingTime,printingGeneration=printingGeneration,wiredPower=useWiredPower,lifeSupport=lifeSupportEnabled,wires=completedWireCells.ToArray(),
                 stableAirSeconds=StableAirSeconds,production=productionTargets.ConvertAll(p=>new DeepProductionTarget{recipeId=p.recipeId,targetAmount=p.targetAmount,enabled=p.enabled}).ToArray(),
                 nextProductionCheck=nextProductionCheck,hazardsEnabled=hazardsEnabled,hazardEventCount=HazardEventCount,lastHazardMessage=LastHazardMessage,
                 hazards=HazardEvents.ConvertAll(h=>new DeepSavedHazard{kind=h.kind,cell=h.cell,direction=h.direction,strength=h.strength,time=h.time,message=h.message}).ToArray(),
@@ -153,7 +153,7 @@ namespace DeepPressure
                 workerData.Add(new DeepSavedWorker { id = ObjectId(worker,"w"),name = worker.displayName,position = worker.transform.position,path = worker.CapturePath(),currentOrderId = worker.currentOrder == null ? -1 : worker.currentOrder.id,
                     moveSpeed = worker.moveCellsPerSecond,workSpeed = worker.workSpeed,digPreference = worker.digPreference,buildPreference = worker.buildPreference,researchPreference = worker.researchPreference,
                     craftPreference = worker.craftPreference,pipePreference = worker.pipePreference,automationPaused = worker.automationPaused,airReserveSeconds=worker.airReserveSeconds,
-                    nextWorkSearchTime=worker.nextWorkSearchTime,environmentUnsafe=worker.environmentUnsafe,environmentEfficiency=worker.environmentEfficiency });
+                    health=worker.health,deathCause=worker.deathCause,diedAtSeconds=worker.diedAtSeconds,nextWorkSearchTime=worker.nextWorkSearchTime,environmentUnsafe=worker.environmentUnsafe,environmentEfficiency=worker.environmentEfficiency });
             }
             data.workers = workerData.ToArray();
             var orderData = new List<DeepSavedOrder>();
@@ -264,9 +264,16 @@ namespace DeepPressure
             }
             var workers = new Dictionary<string,DeepWorker>(StringComparer.Ordinal);
             foreach (var worker in Workers) if (worker != null) workers[ObjectId(worker,"w")] = worker;
+            var desiredWorkers=new HashSet<string>();foreach(var entry in data.workers)desiredWorkers.Add(entry.id);
+            // Instantiate missing arrivals before removing extras so a visual template is available.
+            foreach(var entry in data.workers)if(!workers.ContainsKey(entry.id)){var created=CreateWorkerObject();SetObjectId(created,entry.id);workers[entry.id]=created;}
+            foreach(var pair in workers)if(!desiredWorkers.Contains(pair.Key))RemoveSavedObject(pair.Value.gameObject);
+            Workers.Clear();
             foreach (var entry in data.workers)
             {
-                var worker = workers[entry.id]; worker.currentOrder = null; worker.displayName = entry.name; worker.transform.position = entry.position;
+                var worker = workers[entry.id]; worker.session=this;Workers.Add(worker);worker.gameObject.SetActive(true);
+                worker.health=data.systemsRevision>=3?entry.health:100;worker.deathCause=data.systemsRevision>=3?entry.deathCause:null;worker.diedAtSeconds=data.systemsRevision>=3?entry.diedAtSeconds:-1;
+                worker.currentOrder = null; worker.displayName = entry.name; worker.transform.position = entry.position;
                 worker.moveCellsPerSecond = entry.moveSpeed; worker.workSpeed = entry.workSpeed; worker.RestorePath(entry.path);
                 worker.digPreference = entry.digPreference; worker.buildPreference = entry.buildPreference; worker.researchPreference = entry.researchPreference;
                 worker.craftPreference = entry.craftPreference; worker.pipePreference = entry.pipePreference; worker.automationPaused = entry.automationPaused;
@@ -361,6 +368,7 @@ namespace DeepPressure
                 useWiredPower=false;lifeSupportEnabled=false;completedWireCells.Clear();productionTargets.Clear();StableAirSeconds=0;
             }
             nextProductionCheck=data.systemsRevision>=2?data.nextProductionCheck:0;InvalidatePowerTopology();
+            nextPrintingTime=data.systemsRevision>=3?data.nextPrintingTime:SimulationTime+Mathf.Max(1,printingIntervalSeconds);printingGeneration=data.systemsRevision>=3?data.printingGeneration:0;
             pendingBreaches.Clear();lastIgnitionEvent.Clear();HazardEvents.Clear();
             HazardEventCount=data.systemsRevision>=2?data.hazardEventCount:0;LastHazardMessage=data.systemsRevision>=2?data.lastHazardMessage:null;
             if(data.systemsRevision>=2)
@@ -371,7 +379,7 @@ namespace DeepPressure
             }
             else hazardsEnabled=true;
             gasFacilityStatus.Clear();OxygenSupplyRate=OxygenDemandRate=CarbonRemovalRate=0;UnsafeWorkerCount=0;
-            foreach(var worker in Workers)if(worker!=null&&worker.environmentUnsafe)UnsafeWorkerCount++;
+            foreach(var worker in Workers)if(worker!=null&&worker.IsAlive&&worker.environmentUnsafe)UnsafeWorkerCount++;
             // Recreate the open-cell mask from the restored terrain before applying exact cell contents.
             // Also reset an existing field for legacy room-only saves so UI cannot read stale cell gas.
             var restoredAtmosphere=world.GetComponent<DeepAtmosphereField>();

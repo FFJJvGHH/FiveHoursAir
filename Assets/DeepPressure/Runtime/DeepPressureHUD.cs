@@ -77,6 +77,7 @@ namespace DeepPressure
             GUI.matrix = Matrix4x4.Scale(new Vector3(scale,scale,1));
             dockRect = new Rect((uiWidth-864)*.5f,uiHeight-88,864,72);
             hoverCandidate = null;
+            if(HandleHiddenDemoInput(Event.current)){GUI.matrix=originalMatrix;GUI.color=originalColor;return;}
             if (DrawGameFlow()) { GUI.matrix = originalMatrix; GUI.color = originalColor; return; }
             UpdateColonyInterface();
             SanitizeSelection(); cardRect = SelectionRect();

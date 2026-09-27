@@ -13,6 +13,8 @@ namespace DeepPressure.Editor
         public static void Run()
         {
             if(EditorApplication.isPlayingOrWillChangePlaymode)throw new InvalidOperationException("Stop Play before editor validation.");
+            foreach(var building in UnityEngine.Object.FindObjectsOfType<DeepBuildingInstance>())
+                if(building.definition!=null&&building.definition.id=="printing_pod"){DeepOpeningVerification.Run();return;}
             string output=DeepPressureSelfTests.RunAll()+"\n"+DeepGameplayTests.RunGameplayTests();
             var source=UnityEngine.Object.FindObjectOfType<DeepGameSession>();Require(source!=null,"Open DeepPressureColony scene.");
             Require(source.world.width>=128&&source.world.height>=80,"Expanded authored map");

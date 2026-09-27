@@ -1,0 +1,19 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 20de5d2d08cfbdf4bac60547c6c21f63, type: 3}
+  m_Name: algae
+  m_EditorClassIdentifier: 
+  id: algae
+  displayName: "\u85FB\u7C7B"
+  description: "\u4F9B\u85FB\u7C7B\u5236\u6C27\u5668\u6D88\u8017\u7684\u751F\u7269\u539F\u6599\uFF0C\u53EF\u5728\u624B\u5DE5\u53F0\u57F9\u80B2\u8865\u5145\u3002"
+  icon: {fileID: 21300000, guid: 74f3b614175d4c54fad1b95c0595bc9f, type: 3}
+  tint: {r: 0.43, g: 0.77, b: 0.46, a: 1}

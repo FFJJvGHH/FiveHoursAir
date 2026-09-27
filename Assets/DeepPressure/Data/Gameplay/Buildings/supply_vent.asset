@@ -24,7 +24,7 @@ MonoBehaviour:
   requiresFloor: 0
   blocksMovement: 0
   role: 11
-  requiredTechId: 
+  requiredTechId: survey_basics
   cost:
   - item: {fileID: 11400000, guid: 15f167b5d4ca87f4393592342aad76b8, type: 2}
     amount: 2

@@ -50,21 +50,31 @@ namespace DeepPressure
         void DrawColonyPulse()
         {
             Rect r=MissionRect;PanelBackground(r);
-            Label(new Rect(r.x+12,r.y+5,190,26),"基地运行",small,Muted);
+            Label(new Rect(r.x+12,r.y+5,248,26),session.IsColonyLost?"全员死亡":session.AliveWorkerCount+" 名工作人员"+(session.UnsafeWorkerCount>0?"  ·  "+session.UnsafeWorkerCount+" 人缺氧":""),small,session.IsColonyLost||session.UnsafeWorkerCount>0?Amber:White);
             Rect fold=new Rect(r.xMax-31,r.y+5,24,24);DrawIcon(missionCollapsed?Icon.Layers:Icon.Close,Inset(fold,6),Muted);if(Click(fold))missionCollapsed=!missionCollapsed;
             if(missionCollapsed)return;
-            Icon[] icons={Icon.Air,Icon.Power,Icon.Material};
-            var fuel=session.catalog.FindItem("fuel");
-            string[] values={session.UnsafeWorkerCount>0?session.UnsafeWorkerCount+" 人":session.OxygenDemandRate.ToString("0.00"),session.PowerProduction.ToString("0")+" W",fuel==null?"—":session.inventory.GetAmount(fuel).ToString()};
-            string[] labels={session.UnsafeWorkerCount>0?"气氛不适":"耗氧 mol/s","供电","燃料"};
+            float demand=session.AliveWorkerCount*Mathf.Max(0,session.breathingMolPerSecond),net=session.OxygenSupplyRate-demand;
+            Label(new Rect(r.x+13,r.y+36,270,21),"氧气  mol/s",small,Muted);
+            string[] values={session.OxygenSupplyRate.ToString("0.00"),demand.ToString("0.00"),net.ToString("+0.00;-0.00;0.00")};
+            string[] labels={"供氧","人员消耗","净增减"};
             for(int i=0;i<3;i++)
             {
-                Rect hit=new Rect(r.x+10+i*77,r.y+37,70,58);bool warning=i==0&&session.UnsafeWorkerCount>0||i==2&&fuel!=null&&session.inventory.GetAmount(fuel)<4;
-                DrawIcon(icons[i],new Rect(hit.x+2,hit.y+1,21,21),warning?Amber:Mint);
-                Label(new Rect(hit.x+28,hit.y,43,24),values[i],small,White);Label(new Rect(hit.x,hit.y+29,70,20),labels[i],tiny,Muted);
-                RegisterHover("pulse"+i,hit,labels[i],i==0?session.AirStatus+" · 供氧 "+session.OxygenSupplyRate.ToString("0.00")+" mol/s":i==1?"需求 "+session.PowerDemand+" W · 电池 "+session.StoredEnergy.ToString("0")+" J":"页岩可开采燃料；点击管理库存");
-                if(Click(hit)){if(i==0){gasRenderer.enabled=true;overlay=OverlayMode.Gas;}else if(i==1)ToggleWireTool(false);else colonyPanel=ColonyPanel.Resources;}
+                Rect hit=new Rect(r.x+12+i*91,r.y+60,86,43);
+                Label(new Rect(hit.x,hit.y,86,23),values[i],new GUIStyle(body){fontSize=16,alignment=TextAnchor.MiddleCenter},i==2&&net<0?Amber:Mint);
+                Label(new Rect(hit.x,hit.y+25,86,18),labels[i],tiny,Muted);
+                RegisterHover("pulse"+i,hit,labels[i],session.AirStatus+" · "+session.AliveWorkerCount+" 人 × "+session.breathingMolPerSecond.ToString("0.00")+" mol/s");
+                if(Click(hit)){if(gasRenderer!=null)gasRenderer.enabled=true;overlay=OverlayMode.Gas;}
             }
+            Fill(new Rect(r.x+12,r.y+112,r.width-24,1),Border);
+            Rect power=new Rect(r.x+12,r.y+119,r.width-24,24);
+            DrawIcon(Icon.Power,new Rect(power.x,power.y+3,17,17),session.HasPower?Mint:Muted);
+            Label(new Rect(power.x+25,power.y,power.width-25,24),"电力  "+session.PowerProduction.ToString("0")+" / "+session.PowerDemand.ToString("0")+" W",small,Muted);
+            RegisterHover("basepower",power,"发电 / 耗电","电池储能 "+session.StoredEnergy.ToString("0")+" J");
+            if(Click(power))ToggleWireTool(false);
+            Rect print=new Rect(r.x+12,r.y+150,r.width-24,27);
+            DrawIcon(Icon.People,new Rect(print.x,print.y+3,19,19),session.PrintingReady?Mint:Muted);
+            Label(new Rect(print.x+27,print.y,print.width-27,27),session.PrintingPod==null?"打印舱不可用":session.PrintingReady?"打印舱 · 可选人员 / 补给":"下次打印  "+TimeLabel(Mathf.Ceil(session.PrintCooldownRemaining)),small,session.PrintingReady?Mint:Muted);
+            if(Click(print)&&session.PrintingPod!=null){ClearSelection();selectedBuilding=session.PrintingPod;FocusAt(selectedBuilding.transform.position);}
         }
         void DrawSystemWorldFeedback()
         {
@@ -116,7 +126,7 @@ namespace DeepPressure
             }
             foreach(var worker in session.Workers)
             {
-                if(worker==null||!Visible(worker.Cell)||!worker.environmentUnsafe)continue;
+                if(worker==null||!worker.IsAlive||!Visible(worker.Cell)||!worker.environmentUnsafe)continue;
                 var r=WorkerBounds(worker);DrawIcon(Icon.Air,new Rect(r.center.x-9,r.y-23,18,18),Amber);
                 Fill(new Rect(r.x,r.yMax+2,r.width*Mathf.Clamp01(worker.airReserveSeconds/90),3),Amber);
             }

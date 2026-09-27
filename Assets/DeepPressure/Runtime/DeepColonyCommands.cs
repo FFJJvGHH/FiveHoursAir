@@ -10,9 +10,10 @@ namespace DeepPressure
         string buildCategory="全部";
         DeepTechDefinition inspectedTech;
         Vector2 researchScroll;
+        Vector2 workersScroll;
         bool draggingDig,missionCollapsed;
         Vector2Int digStart,digEnd;
-        Rect MissionRect=>new Rect(uiWidth-266,75,247,missionCollapsed?35:104);
+        Rect MissionRect=>new Rect(uiWidth-316,75,297,missionCollapsed?35:189);
         Rect CommandRect=>new Rect(dockRect.x,dockRect.y-42,dockRect.width,32);
         Rect TimeRect=>new Rect(uiWidth-316,17,297,39);
         bool CommandBlocksPointer=>TimeRect.Contains(pointer)||(colonyPanel==ColonyPanel.None&&MissionRect.Contains(pointer))||(colonyTool!=ColonyTool.None&&CommandRect.Contains(pointer));
@@ -21,7 +22,7 @@ namespace DeepPressure
             if(session==null||pauseMenu)return;
             Rounded(TimeRect,Panel,9);
             Label(new Rect(TimeRect.x+13,TimeRect.y,130,39),"第 "+(1+(int)(session.SimulationTime/600))+" 周期  "+TimeLabel(session.SimulationTime),body,White);
-            string rate=ColonyPaused?"已暂停":session.speed.ToString("0.#")+"×";
+            string rate=ColonyPaused?"▶ 继续":session.speed.ToString("0.#")+"×";
             SmallButton(new Rect(TimeRect.x+147,TimeRect.y+7,55,25),rate,()=>SetColonyPause(!ColonyPaused));
             SmallButton(new Rect(TimeRect.x+210,TimeRect.y+7,76,25),"菜单 Esc",TogglePauseMenu);
             if(colonyPanel==ColonyPanel.None)DrawColonyPulse();
@@ -112,7 +113,7 @@ namespace DeepPressure
         }
         void DrawBuildPanel()
         {
-            var all=session.catalog.buildings.Where(b=>b!=null).ToArray();
+            var all=session.catalog.buildings.Where(b=>b!=null&&b.id!="printing_pod").ToArray();
             string[] categories=new[]{"全部"}.Concat(all.Select(b=>b.category).Distinct()).ToArray();
             int categoryRows=Mathf.CeilToInt(categories.Length/4f);
             for(int i=0;i<categories.Length;i++)
@@ -144,33 +145,42 @@ namespace DeepPressure
             }
             float bottom=colonyRect.yMax-33;
             SmallButton(new Rect(colonyRect.x+14,bottom,75,25),"上一页",()=>buildingPage=Mathf.Max(0,buildingPage-1));
-            Label(new Rect(colonyRect.x+100,bottom,197,25),(buildingPage+1)+" / "+pages+"  ·  点击锁定设施查看科技",tiny,Muted);
+            Label(new Rect(colonyRect.x+100,bottom,197,25),(buildingPage+1)+" / "+pages,tiny,Muted);
             SmallButton(new Rect(colonyRect.xMax-89,bottom,75,25),"下一页",()=>buildingPage=Mathf.Min(pages-1,buildingPage+1));
         }
         void DrawWorkersPanel()
         {
             float x=colonyRect.x+15,y=colonyRect.y+56;
-            Label(new Rect(x,y,550,24),"分工先决定谁来做，再按工单优先级与路程分配工作。",small,Muted);y+=31;
+            Label(new Rect(x,y,550,24),"在岗 "+session.AliveWorkerCount+" 人  ·  已故 "+session.DeadWorkerCount+" 人",small,Muted);y+=31;
             DeepWorkKind[] kinds={DeepWorkKind.Dig,DeepWorkKind.Build,DeepWorkKind.Research,DeepWorkKind.Craft,DeepWorkKind.Pipe};
             string[] names={"挖掘","建造","研究","制造","管线"};
             for(int i=0;i<5;i++)Label(new Rect(x+210+i*65,y,61,22),names[i],tiny,Muted);y+=24;
+            float rosterHeight=Mathf.Min(219,Mathf.Max(66,session.Workers.Count*73));
+            Rect viewport=new Rect(x,y,560,rosterHeight);
+            Vector2 oldPointer=pointer;
+            workersScroll=GUI.BeginScrollView(viewport,workersScroll,new Rect(0,0,540,Mathf.Max(rosterHeight,session.Workers.Count*73)));
+            pointer=oldPointer-viewport.position+workersScroll;
+            float rowY=0;
             foreach(var worker in session.Workers)
             {
-                if(worker==null)continue;Rect r=new Rect(x,y,560,66);Rounded(r,new Color(.07f,.115f,.13f),7);
-                Rect select=new Rect(x+8,y+5,192,53);DrawIcon(Icon.Person,new Rect(x+10,y+10,20,20),Mint);
-                Label(new Rect(x+37,y+6,167,22),worker.displayName,body,White);Label(new Rect(x+10,y+33,190,23),worker.Status,small,Muted);
+                if(worker==null)continue;Rect r=new Rect(0,rowY,540,66);Rounded(r,new Color(.07f,.115f,.13f),7);
+                Rect select=new Rect(8,rowY+5,192,53);DrawIcon(Icon.Person,new Rect(10,rowY+10,20,20),worker.IsAlive?Mint:Muted);
+                Label(new Rect(37,rowY+6,167,22),worker.displayName+(worker.IsAlive?"  "+worker.health.ToString("0")+" HP":"  已故"),body,worker.IsAlive?White:Muted);
+                Label(new Rect(10,rowY+33,190,23),worker.Status,small,worker.IsAlive?Muted:Amber);
                 if(Click(select)){SelectWorker(worker);FocusAt(worker.transform.position);}
                 for(int i=0;i<5;i++)
                 {
-                    var kind=kinds[i];int preference=worker.GetPreference(kind);Rect p=new Rect(x+210+i*65,y+17,59,31);
+                    var kind=kinds[i];int preference=worker.GetPreference(kind);Rect p=new Rect(210+i*65,rowY+17,59,31);
+                    if(!worker.IsAlive){Label(p,"—",tiny,Muted);continue;}
                     string[] options={"禁用","低","正常","高"};Rounded(p,preference==3?new Color(.21f,.36f,.28f):new Color(.11f,.17f,.19f),5);
                     Label(p,options[Mathf.Clamp(preference,0,3)],tiny,preference==0?Amber:preference==3?Mint:White);
                     RegisterHover("pref"+worker.GetInstanceID()+i,p,names[i]+"偏好","点击轮换：禁用 → 低 → 正常 → 高");
                     if(Click(p))session.SetWorkerPreference(worker,kind,(preference+1)%4);
                 }
-                y+=73;
+                rowY+=73;
             }
-            Label(new Rect(x,y,560,26),"工单队列  ·  点击优先级数字循环调整  ·  × 取消并返还预留材料",small,Muted);y+=34;
+            GUI.EndScrollView();pointer=oldPointer;y+=rosterHeight+12;
+            Label(new Rect(x,y,560,26),"工单队列",small,Muted);y+=34;
             var pending=session.Orders.Where(o=>o!=null&&!o.IsTerminal).OrderByDescending(o=>o.priority).ThenBy(o=>o.id).ToArray();
             int rows=Mathf.Max(1,(int)((colonyRect.yMax-y-36)/57)),pages=Mathf.Max(1,Mathf.CeilToInt(pending.Length/(float)rows));ordersPage=Mathf.Clamp(ordersPage,0,pages-1);
             foreach(var order in pending.Skip(ordersPage*rows).Take(rows))
@@ -179,7 +189,7 @@ namespace DeepPressure
                 if(Click(priority))session.SetOrderPriority(order,order.priority%9+1);
                 DrawOrderRow(order,new Rect(x+43,y,516,50));y+=57;
             }
-            if(pending.Length==0)Label(new Rect(x,y,550,28),"没有待办工单。按 B 建造，或按 G 框选挖掘。",small,Muted);
+            if(pending.Length==0)Label(new Rect(x,y,550,28),"没有待办工单",small,Muted);
             if(pages>1){float bottom=colonyRect.yMax-31;SmallButton(new Rect(x,bottom,80,24),"上一页",()=>ordersPage=Mathf.Max(0,ordersPage-1));Label(new Rect(x+237,bottom,85,24),(ordersPage+1)+" / "+pages,tiny,Muted);SmallButton(new Rect(x+479,bottom,80,24),"下一页",()=>ordersPage=Mathf.Min(pages-1,ordersPage+1));}
         }
         void DrawPriorityPicker(Rect rect,DeepWorkOrder order)

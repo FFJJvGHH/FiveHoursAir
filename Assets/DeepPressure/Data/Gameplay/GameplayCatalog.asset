@@ -12,7 +12,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: e8a819e8fa8ef3d498e945312fc28b16, type: 3}
   m_Name: GameplayCatalog
   m_EditorClassIdentifier: 
-  contentRevision: 4
+  contentRevision: 5
   items:
   - {fileID: 11400000, guid: 7f17c053bebcae846b93f55ae91dc661, type: 2}
   - {fileID: 11400000, guid: 15f167b5d4ca87f4393592342aad76b8, type: 2}
@@ -20,6 +20,7 @@ MonoBehaviour:
   - {fileID: 11400000, guid: 0be86df95d73edc43b816b05785abe39, type: 2}
   - {fileID: 11400000, guid: 70772b07cb7605e429e08fa006d7a795, type: 2}
   - {fileID: 11400000, guid: aca53d3be0ab8b14cb18ec45082a5dc4, type: 2}
+  - {fileID: 11400000, guid: ced0d55b15f26804fbd882ed032dbe62, type: 2}
   buildings:
   - {fileID: 11400000, guid: 1ef3df408b8039c468dd9a5f8c9b4a7b, type: 2}
   - {fileID: 11400000, guid: bdf41ed0a0909ca43aa24190e6eb7099, type: 2}
@@ -44,6 +45,8 @@ MonoBehaviour:
   - {fileID: 11400000, guid: d640c43e72d4d774287339f2967d5a05, type: 2}
   - {fileID: 11400000, guid: 10d2bff9280c4a64a9b9773909dd84c1, type: 2}
   - {fileID: 11400000, guid: 7e3f026bf5ff75c47a37defa3104e92d, type: 2}
+  - {fileID: 11400000, guid: c53b88578a148634c9df23b21f28cce9, type: 2}
+  - {fileID: 11400000, guid: 35716719577f22b4690178ef013c3c93, type: 2}
   technologies:
   - {fileID: 11400000, guid: 4a5773d8e524d5e4d848160439e6e7cf, type: 2}
   - {fileID: 11400000, guid: 548b9daaafb715842a7082aa2fef76a3, type: 2}
@@ -64,3 +67,4 @@ MonoBehaviour:
   - {fileID: 11400000, guid: 7c1981ce5205c484cbe97457f6d885e6, type: 2}
   - {fileID: 11400000, guid: 3f2601e8d7f83914f9231f7bc40c5350, type: 2}
   - {fileID: 11400000, guid: 721810b6830874c45969edeb9fa22156, type: 2}
+  - {fileID: 11400000, guid: 89bebb25b1f5a5b4f942b711ee40626a, type: 2}

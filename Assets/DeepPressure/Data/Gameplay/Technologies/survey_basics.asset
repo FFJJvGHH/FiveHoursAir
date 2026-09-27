@@ -26,4 +26,6 @@ MonoBehaviour:
   unlockBuildingIds:
   - gas_tank
   - oxygen_tank
+  - intake_pump
+  - supply_vent
   unlockRecipeIds: []

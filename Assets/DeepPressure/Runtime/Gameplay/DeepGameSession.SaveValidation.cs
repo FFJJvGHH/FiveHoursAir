@@ -12,7 +12,7 @@ namespace DeepPressure
             {
                 RequireSave(initialized && world != null && catalog != null,"关卡或内容目录未就绪");
                 RequireSave(data != null && data.version == 1,"不支持的世界数据版本");
-                RequireSave(data.systemsRevision >= 0 && data.systemsRevision <= 2,"不支持的基地系统版本");
+                RequireSave(data.systemsRevision >= 0 && data.systemsRevision <= 3,"不支持的基地系统版本");
                 RequireSave(data.sceneName == world.gameObject.scene.name,"存档属于另一个关卡");
                 RequireSave(data.width == world.width && data.height == world.height,"存档地图尺寸不匹配");
                 RequireSave(data.terrain != null && data.terrain.Length == world.width*world.height && data.terrainTiles != null && data.terrainTiles.Length == data.terrain.Length,"地形数据不完整");
@@ -91,14 +91,16 @@ namespace DeepPressure
                 }
                 var existingWorkers = new HashSet<string>(); foreach (var worker in Workers) if (worker != null) existingWorkers.Add(ObjectId(worker,"w"));
                 var workerIds = new HashSet<string>(StringComparer.Ordinal); var savedWorkers = new Dictionary<string,DeepSavedWorker>();
-                RequireSave(existingWorkers.Count == data.workers.Length,"工人数量与当前关卡不匹配");
+                RequireSave(data.workers.Length<=1000,"人员数量异常");
+                if(data.systemsRevision>=3)RequireSave(SaveFinite(data.nextPrintingTime)&&data.nextPrintingTime>=0&&data.printingGeneration>=0,"打印舱时钟无效");
                 foreach (var entry in data.workers)
                 {
-                    RequireSave(entry != null && ValidSaveId(entry.id,"w") && workerIds.Add(entry.id) && existingWorkers.Contains(entry.id),"工人 ID 不匹配");
+                    RequireSave(entry != null && ValidSaveId(entry.id,"w") && workerIds.Add(entry.id),"工人 ID 不匹配");
                     RequireSave(SaveFinite(entry.position) && SaveFinite(entry.moveSpeed) && entry.moveSpeed > 0 && SaveFinite(entry.workSpeed) && entry.workSpeed > 0,"工人状态无效");
                     foreach (int preference in new[] { entry.digPreference,entry.buildPreference,entry.researchPreference,entry.craftPreference,entry.pipePreference }) RequireSave(preference >= 0 && preference <= 3,"工人优先级无效");
                     RequireSave(entry.path != null,"工人路线缺失"); foreach (var cell in entry.path) RequireSave(world.IsInside(cell),"工人路线超出地图");
                     savedWorkers.Add(entry.id,entry);
+                    if(data.systemsRevision>=3){RequireSave(SaveFinite(entry.health)&&entry.health>=0&&entry.health<=100&&SaveFinite(entry.diedAtSeconds),"人员健康无效");RequireSave(entry.health>0||entry.currentOrderId<0&&entry.path.Length==0,"死亡人员仍占用工作");}
                     RequireSave(SaveFinite(entry.airReserveSeconds)&&entry.airReserveSeconds>=0&&entry.airReserveSeconds<=90,"工人气氛缓冲状态无效");
                     if(data.systemsRevision>=2)RequireSave(SaveFinite(entry.nextWorkSearchTime)&&entry.nextWorkSearchTime>=0&&SaveFinite(entry.environmentEfficiency)&&entry.environmentEfficiency>=.5f&&entry.environmentEfficiency<=1,"工人调度或气氛效率状态无效");
                 }
