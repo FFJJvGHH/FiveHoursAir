@@ -13,8 +13,8 @@ namespace DeepPressure
         Vector2 workersScroll;
         bool draggingDig,missionCollapsed;
         Vector2Int digStart,digEnd;
-        Rect MissionRect=>new Rect(uiWidth-316,75,297,missionCollapsed?35:189);
-        Rect CommandRect=>new Rect(dockRect.x,dockRect.y-42,dockRect.width,32);
+        Rect MissionRect=>new Rect(uiWidth-316,75,297,missionCollapsed?35:247);
+        Rect CommandRect=>new Rect(dockRect.x-88,dockRect.y-42,dockRect.width+88,32);
         Rect TimeRect=>new Rect(uiWidth-316,17,297,39);
         bool CommandBlocksPointer=>TimeRect.Contains(pointer)||(colonyPanel==ColonyPanel.None&&MissionRect.Contains(pointer))||(colonyTool!=ColonyTool.None&&CommandRect.Contains(pointer));
         void DrawCommandInterface()
@@ -23,7 +23,7 @@ namespace DeepPressure
             Rounded(TimeRect,Panel,9);
             Label(new Rect(TimeRect.x+13,TimeRect.y,130,39),"第 "+(1+(int)(session.SimulationTime/600))+" 周期  "+TimeLabel(session.SimulationTime),body,White);
             string rate=ColonyPaused?"▶ 继续":session.speed.ToString("0.#")+"×";
-            SmallButton(new Rect(TimeRect.x+147,TimeRect.y+7,55,25),rate,()=>SetColonyPause(!ColonyPaused));
+            SmallButton(new Rect(TimeRect.x+147,TimeRect.y+7,55,25),rate,()=>{if(ColonyPaused)SetColonyPause(false);else CycleColonySpeed();});
             SmallButton(new Rect(TimeRect.x+210,TimeRect.y+7,76,25),"菜单 Esc",TogglePauseMenu);
             if(colonyPanel==ColonyPanel.None)DrawColonyPulse();
             DrawSystemWorldFeedback();
@@ -78,7 +78,7 @@ namespace DeepPressure
                     case KeyCode.G:ActivateColonyTool(1);break;
                     case KeyCode.J:ActivateColonyTool(2);break;
                     case KeyCode.R:ActivateColonyTool(3);break;
-                    case KeyCode.C:colonyPanel=colonyPanel==ColonyPanel.Craft?ColonyPanel.None:ColonyPanel.Craft;colonyTool=ColonyTool.None;selectedBuilding=null;break;
+                    case KeyCode.C:ToggleProductionPanel();break;
                     case KeyCode.E:ToggleWireTool(e.shift);break;
                     case KeyCode.I:colonyPanel=colonyPanel==ColonyPanel.Resources?ColonyPanel.None:ColonyPanel.Resources;break;
                     case KeyCode.F5:SaveQuick();break;
@@ -86,6 +86,7 @@ namespace DeepPressure
                     case KeyCode.Alpha1:SetColonySpeed(1);break;
                     case KeyCode.Alpha2:SetColonySpeed(2);break;
                     case KeyCode.Alpha3:SetColonySpeed(4);break;
+                    case KeyCode.Alpha4:SetColonySpeed(6);break;
                     case KeyCode.Home:viewCamera.transform.position=startingCameraPosition;viewCamera.orthographicSize=startingCameraSize;break;
                     default:return false;
                 }
@@ -140,7 +141,7 @@ namespace DeepPressure
                 {
                     if(!unlocked){inspectedTech=session.catalog.FindTech(b.requiredTechId);colonyPanel=ColonyPanel.Research;continue;}
                     if(!affordable){ShowToast("材料不足："+CostText(b.cost),false);continue;}
-                    buildChoice=b;colonyTool=ColonyTool.Build;tool=ToolMode.None;ClearSelection();DeepInterfaceFeedback.Play(true);
+                    buildChoice=b;colonyTool=ColonyTool.Build;colonyPanel=ColonyPanel.None;tool=ToolMode.None;ClearSelection();DeepInterfaceFeedback.Play(true);
                 }
             }
             float bottom=colonyRect.yMax-33;

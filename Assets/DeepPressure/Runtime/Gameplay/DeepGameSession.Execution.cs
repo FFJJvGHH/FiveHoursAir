@@ -11,7 +11,7 @@ namespace DeepPressure
             List<Vector2Int> selectedPath = null;
             Vector2Int selectedWork = default,selectedPickup = default;
             bool selectedFetching = false;
-            int bestScore = int.MinValue;
+            int bestPreference=-1,bestPriority=-1,bestTravel=int.MaxValue;
             foreach (var order in Orders)
             {
                 if (order.IsTerminal || order.worker != null || order.Progress >= 1 || SimulationTime < order.nextRetryTime || (order.requestedWorker != null && order.requestedWorker != worker)) continue;
@@ -31,19 +31,22 @@ namespace DeepPressure
                 { order.state = DeepWorkState.Blocked; order.statusReason = "工作位置不可达，需要地面或连续梯子"; continue; }
                 Vector2Int workCell = path.Count == 0 ? worker.Cell : path[path.Count-1],pickupCell = default;
                 bool fetching = order.reservation != null && order.reservation.Units > 0 && !order.materialsCollected;
-                int travel = path.Count;
+                int travel = DeepNavigation.TravelCost(path,worker.Cell);
                 if (fetching)
                 {
-                    if (!TryWarehousePath(worker,out var pickupPath,out pickupCell))
+                    if (!TryMaterialRoute(worker,positions,out var pickupPath,out pickupCell,out workCell,out travel))
                     { order.state = DeepWorkState.Blocked; order.statusReason = "仓库不可达，等待取料"; continue; }
-                    travel += pickupPath.Count; path = pickupPath;
+                    path=pickupPath;
                 }
+                if(CloserIdleWorkerCanClaim(order,worker,positions,travel,fetching))
+                {order.state=DeepWorkState.Queued;order.statusReason="等待附近同工种空闲人员";continue;}
                 // A worker's enabled specialties come first, then the colony's 1–9 priority,
                 // then travel distance. Stable iteration preserves older orders on exact ties.
-                int score = preference*1000+Mathf.Clamp(order.priority,1,9)*100-Mathf.Min(99,travel);
+                int priority=Mathf.Clamp(order.priority,1,9);
                 order.state = DeepWorkState.Queued; order.statusReason = "等待空闲工人 · 优先级 "+order.priority;
-                if (score <= bestScore) continue;
-                bestScore = score; selected = order; selectedPath = path; selectedWork = workCell; selectedPickup = pickupCell; selectedFetching = fetching;
+                if(preference<bestPreference||preference==bestPreference&&(priority<bestPriority||priority==bestPriority&&travel>=bestTravel))continue;
+                bestPreference=preference;bestPriority=priority;bestTravel=travel;
+                selected = order; selectedPath = path; selectedWork = workCell; selectedPickup = pickupCell; selectedFetching = fetching;
             }
             if (selected == null) { worker.nextWorkSearchTime = SimulationTime+.35f; return; }
             worker.nextWorkSearchTime = 0;
@@ -60,12 +63,21 @@ namespace DeepPressure
                 var bounds = new RectInt(order.targetCell,order.buildingDefinition.footprint);
                 if (order.buildingDefinition.requiresFloor)
                     for (int x = bounds.xMin; x < bounds.xMax; x++) if (!IsSupport(new Vector2Int(x,bounds.yMin-1))) { order.statusReason = "等待承重地板完工"; return new List<Vector2Int>(); }
+                if(order.buildingDefinition.role==DeepBuildingRole.Ladder&&!LadderHasAnchor(bounds,false))
+                {order.statusReason="等待相连梯子或实体承重点完工";return new List<Vector2Int>();}
                 return WorkPositions(bounds);
             }
             if (order.kind == DeepWorkKind.Dig) return WorkPositions(new RectInt(order.targetCell,Vector2Int.one));
             if (order.kind == DeepWorkKind.Pipe) return PipeWorkPositions(order.fromNode,order.toNode);
             if (order.kind == DeepWorkKind.Wire) return WireWorkPositions(order.targetCell);
             if (order.kind == DeepWorkKind.Sample || order.kind == DeepWorkKind.Survey) return ExplorationWorkPositions(order);
+            if(order.kind==DeepWorkKind.Craft)
+            {
+                // A crafting order belongs to the machine selected when it was queued.
+                // Worker availability, queue contention and power loss never retarget it.
+                if(!CraftStationReady(order,out var reason)){order.statusReason=reason;return new List<Vector2Int>();}
+                order.targetCell=order.targetBuilding.origin;return WorkPositions(order.targetBuilding.Bounds);
+            }
             if (candidateWorker != null || order.targetBuilding == null || !order.targetBuilding.isConstructed || !order.targetBuilding.IsOperational || StationBusy(order.targetBuilding,order))
             {
                 var role = order.kind == DeepWorkKind.Research ? DeepBuildingRole.Research : DeepBuildingRole.Fabricator;
@@ -80,7 +92,7 @@ namespace DeepPressure
                         if (candidateWorker != null)
                         {
                             if (!DeepNavigation.TryFindPath(this,candidateWorker.Cell,WorkPositions(building.Bounds),out var stationPath)) continue;
-                            distance = stationPath.Count;
+                            distance = DeepNavigation.TravelCost(stationPath,candidateWorker.Cell);
                         }
                         if (distance < shortest) { available = building; shortest = distance; }
                     }
@@ -97,6 +109,16 @@ namespace DeepPressure
         {
             foreach (var other in Orders) if (other != order && !other.IsTerminal && other.worker != null && other.targetBuilding == station) return true;
             return false;
+        }
+        bool CraftStationReady(DeepWorkOrder order,out string reason)
+        {
+            if(!StationCanMake(order.targetBuilding,order.recipe)){reason="指定生产设备已移除或不支持此配方";return false;}
+            if(!order.targetBuilding.IsOperational){reason="指定生产设备已关闭或电力不足";return false;}
+            foreach(var previous in Orders)
+                if(previous!=order&&!previous.IsTerminal&&previous.kind==DeepWorkKind.Craft&&previous.targetBuilding==order.targetBuilding&&previous.id<order.id)
+                {reason="等待本设备前面的生产任务";return false;}
+            if(StationBusy(order.targetBuilding,order)){reason="指定设备正在工作";return false;}
+            reason=string.Empty;return true;
         }
         void TickWorker(DeepWorker worker,float dt)
         {
@@ -118,6 +140,8 @@ namespace DeepPressure
                 return;
             }
             if (worker.Cell != order.workCell || !IsStandable(worker.Cell)) { RequeueWorker(worker,"工作站位已改变"); return; }
+            if(order.kind==DeepWorkKind.Craft&&(!CraftStationReady(order,out var stationReason)||!WorkPositions(order.targetBuilding.Bounds).Contains(worker.Cell)))
+            {RequeueWorker(worker,string.IsNullOrEmpty(stationReason)?"人员尚未到达指定设备":stationReason);order.state=DeepWorkState.Blocked;order.nextRetryTime=SimulationTime+1;return;}
             if ((order.kind == DeepWorkKind.Research || order.kind == DeepWorkKind.Craft) && (order.targetBuilding == null || !order.targetBuilding.IsOperational))
             { RequeueWorker(worker,"工作台停用或电力不足"); order.state = DeepWorkState.Blocked; order.nextRetryTime = SimulationTime+1; return; }
             order.state = DeepWorkState.Working; order.statusReason = "作业中";
@@ -145,6 +169,7 @@ namespace DeepPressure
                     RectInt area = new RectInt(order.targetCell,def.footprint);
                     if (def.requiresFloor)
                         for (int x = area.xMin; x < area.xMax; x++) if (!IsSupport(new Vector2Int(x,area.yMin-1))) return BlockFinished(order,"施工支撑已失效，等待地板修复");
+                    if(def.role==DeepBuildingRole.Ladder&&!LadderHasAnchor(area,false))return BlockFinished(order,"梯子缺少实体承重点，等待支撑完工");
                     if (def.blocksMovement)
                         foreach (var worker in Workers) if (worker != null && worker.IsAlive && (area.Contains(worker.Cell) || area.Contains(worker.Cell+Vector2Int.up)))
                             return BlockFinished(order,"等待人员离开施工范围");
@@ -167,6 +192,7 @@ namespace DeepPressure
                 case DeepWorkKind.Dig:
                 {
                     if (world.GetTerrain(order.targetCell.x,order.targetCell.y) == TerrainKind.Empty) { FinishOrder(order); return true; }
+                    if(RemovingSupportDetachesLadder(order.targetCell))return BlockFinished(order,"挖掘将移除梯子链最后承重点，请先补建支撑");
                     var output = ExcavationOutputs(order.targetCell);
                     if (!inventory.CanComplete(null,output,1,out string reason)) return BlockFinished(order,reason);
                     PrepareExcavationHazard(order.targetCell);
@@ -180,6 +206,9 @@ namespace DeepPressure
                     inventory.Commit(order.reservation); technologies.Add(order.technology.id);
                     DeepParticleFeedback.Emit(DeepFeedbackKind.Research,effectPosition); break;
                 case DeepWorkKind.Craft:
+                    if(!CraftStationReady(order,out string stationReason))return BlockFinished(order,stationReason);
+                    if(order.worker!=null&&(!order.materialsCollected&&order.reservation!=null&&order.reservation.Units>0||!WorkPositions(order.targetBuilding.Bounds).Contains(order.worker.Cell)))
+                        return BlockFinished(order,"人员与物料尚未到达指定生产设备");
                     if (!inventory.Complete(order.reservation,order.recipe.outputs,order.batches,out string craftReason)) return BlockFinished(order,craftReason);
                     DeepParticleFeedback.Emit(DeepFeedbackKind.Craft,effectPosition); break;
                 case DeepWorkKind.Pipe:
@@ -222,6 +251,7 @@ namespace DeepPressure
         void RefreshWorldAfterTerrain(Vector2Int cell)
         {
             world.SyncTerrainFromTilemap();
+            NotifyNavigationChanged();
             if(lifeSupportEnabled&&Atmosphere!=null&&Atmosphere.IsInitialized){world.RebuildRooms();Atmosphere.RebuildAfterTerrainChange();}
             else world.RebuildRoomsPreservingGas();
             if (exploration != null) { exploration.RefreshAfterTerrainChange(); exploration.RevealAroundWork(cell); }

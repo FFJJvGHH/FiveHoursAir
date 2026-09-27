@@ -66,9 +66,11 @@ namespace DeepPressure.Editor
                 Build(session,"oxygen_diffuser",new Vector2Int(40,53));
                 var oxygenBefore=session.Atmosphere.TotalInventory().oxygen;
                 var algae=session.catalog.FindItem("algae");int algaeBefore=session.inventory.GetAmount(algae);
-                for(int i=0;i<40;i++)session.Tick(.5f);
-                Require(session.OxygenSupplyRate>0,"Built diffuser supplies actual breathable oxygen.");
-                Require(session.Atmosphere.TotalInventory().oxygen>oxygenBefore,"One diffuser can offset the starting crew demand.");
+                double supplied=0,consumed=0;
+                for(int i=0;i<40;i++){session.Tick(.5f);supplied+=session.OxygenSupplyRate*.5;consumed+=session.OxygenDemandRate*.5;}
+                Require(supplied>0,"Built diffuser recycles actual CO2 into breathable oxygen.");
+                Require(Math.Abs(session.Atmosphere.TotalInventory().oxygen-oxygenBefore-supplied+consumed)<.05,"Oxygen inventory matches actual production minus respiration.");
+                Require(session.AliveWorkerCount==3&&session.UnsafeWorkerCount==0,"Starter crew remains healthy while the algae loop is running.");
                 Require(session.inventory.GetAmount(algae)<algaeBefore,"Oxygen supply consumes finite algae.");
                 report.AppendLine("PASS: workers collect supplies at pod, construct hand fabrication/research/basic oxygen; ore becomes alloy; algae becomes room oxygen.");
                 var saved=session.CaptureSaveState();Require(session.TryRestoreSaveState(saved,out reason),"Opening progress round trip: "+reason);

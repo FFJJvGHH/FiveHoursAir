@@ -23,7 +23,7 @@ namespace DeepPressure
             bool changed = false;
             foreach (var worker in session.Workers)
             {
-                if (worker == null || !worker.isActiveAndEnabled) continue;
+                if (worker == null || !worker.isActiveAndEnabled || !worker.IsAlive) continue;
                 changed |= Observe(worker.GetInstanceID(),worker.Cell + Vector2Int.up,workerSightCells,force);
                 if (worker.CurrentOrder != null && (worker.CurrentOrder.kind == DeepWorkKind.Sample || worker.CurrentOrder.kind == DeepWorkKind.Survey))
                     DeepSurveyFeedback.Ensure(worker);

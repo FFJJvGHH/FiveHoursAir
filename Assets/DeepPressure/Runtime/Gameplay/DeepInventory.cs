@@ -7,6 +7,9 @@ namespace DeepPressure
     {
         readonly Dictionary<string,int> amounts = new Dictionary<string,int>(StringComparer.Ordinal);
         int heldUnits;
+        // Actual transactions, not reservations or net capacity. Presentation may observe these.
+        public long ReceivedUnits {get;private set;}
+        public long DispatchedUnits {get;private set;}
         public int Capacity { get; private set; } = 300;
         public int UsedCapacity { get { int total = heldUnits; foreach (int amount in amounts.Values) total += amount; return total; } }
         public int AvailableCapacity => Math.Max(0,Capacity-UsedCapacity);
@@ -23,12 +26,12 @@ namespace DeepPressure
         public bool TryAdd(DeepItemDefinition item,int amount)
         {
             if (item == null || string.IsNullOrWhiteSpace(item.id) || amount < 0 || amount > AvailableCapacity) return false;
-            amounts[item.id] = GetAmount(item.id)+amount; return true;
+            amounts[item.id] = GetAmount(item.id)+amount; ReceivedUnits+=amount; return true;
         }
         public bool TryConsume(DeepItemDefinition item,int amount)
         {
             if (item == null || amount < 0 || GetAmount(item) < amount) return false;
-            amounts[item.id] = GetAmount(item)-amount; return true;
+            amounts[item.id] = GetAmount(item)-amount; DispatchedUnits+=amount; return true;
         }
         public bool TryReserve(DeepItemAmount[] cost,out DeepReservation reservation,out string reason,int multiplier = 1)
         {
@@ -43,7 +46,7 @@ namespace DeepPressure
             foreach (var entry in reservation.items) { amounts[entry.Key] = GetAmount(entry.Key)+entry.Value; heldUnits -= entry.Value; }
             reservation.settled = true;
         }
-        public void Commit(DeepReservation reservation) { if (reservation == null || reservation.settled) return; heldUnits -= reservation.Units; reservation.settled = true; }
+        public void Commit(DeepReservation reservation) { if (reservation == null || reservation.settled) return; heldUnits -= reservation.Units; DispatchedUnits+=reservation.Units; reservation.settled = true; }
         public bool CanComplete(DeepReservation reservation,DeepItemAmount[] output,int multiplier,out string reason)
         {
             if (reservation != null && reservation.settled) { reason = "物料预留已经结算"; return false; }
@@ -56,7 +59,7 @@ namespace DeepPressure
         public bool Complete(DeepReservation reservation,DeepItemAmount[] output,int multiplier,out string reason)
         {
             if (!CanComplete(reservation,output,multiplier,out reason) || !Aggregate(output,multiplier,out var products,out reason)) return false;
-            Commit(reservation); foreach (var entry in products) amounts[entry.Key] = GetAmount(entry.Key)+entry.Value; return true;
+            Commit(reservation); foreach (var entry in products){amounts[entry.Key] = GetAmount(entry.Key)+entry.Value;ReceivedUnits+=entry.Value;} return true;
         }
         static bool Aggregate(DeepItemAmount[] items,int multiplier,out Dictionary<string,int> result,out string reason)
         {

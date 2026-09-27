@@ -1,5 +1,6 @@
 using System;
 using UnityEngine;
+using UnityEngine.Rendering;
 
 namespace DeepPressure
 {
@@ -21,6 +22,28 @@ namespace DeepPressure
         Vector3 previous;
         float clock,walkCycle,workCycle,idleElapsed,personality;
         bool wasWorking,wasDead;
+        SortingGroup sortingGroup;
+
+        public void RefreshStableSorting()
+        {
+            if(worker==null)worker=GetComponent<DeepWorker>();
+            if(worker==null||worker.session==null||worker.session.world==null||worker.visualRenderer==null)return;
+            var worldRoot=worker.session.world.transform;
+            var crewRoot=worldRoot.Find("Crew · stable rendering");
+            if(crewRoot==null)
+            {
+                var go=new GameObject("Crew · stable rendering");crewRoot=go.transform;crewRoot.SetParent(worldRoot,false);
+                var outer=go.AddComponent<SortingGroup>();outer.sortingLayerID=worker.visualRenderer.sortingLayerID;outer.sortingOrder=25;
+            }
+            // Keep the colony at its original world order (below pipe overlays and work sparks),
+            // but give complete characters unique orders inside this shared sorting group.
+            if(transform.parent!=crewRoot)transform.SetParent(crewRoot,true);
+            if(sortingGroup==null)sortingGroup=GetComponent<SortingGroup>();
+            if(sortingGroup==null)sortingGroup=gameObject.AddComponent<SortingGroup>();
+            sortingGroup.sortingLayerID=worker.visualRenderer.sortingLayerID;
+            int index=worker.session.Workers.IndexOf(worker);
+            sortingGroup.sortingOrder=(worker.IsAlive?1001:0)+Mathf.Max(0,index);
+        }
 
         void Start()
         {
@@ -32,12 +55,31 @@ namespace DeepPressure
                 authoredScale=worker.visualRenderer.transform.localScale;
                 groundedFootLocalPosition=worker.visualRenderer.transform.localPosition;
                 groundedFootLocalPosition.y+=Foot(idle)*authoredScale.y;
+                anchorsBaked=true;
             }
+            if(worker.IsAlive)ResetLivingPose();
+            RefreshStableSorting();
+        }
+
+        public void ResetLivingPose()
+        {
+            if(worker==null)worker=GetComponent<DeepWorker>();
+            previous=transform.position;wasDead=false;wasWorking=false;idleElapsed=walkCycle=workCycle=0;
+            if(worker==null||worker.visualRenderer==null)return;
+            RefreshStableSorting();
+            var sprite=worker.visualRenderer;
+            sprite.transform.localRotation=Quaternion.identity;
+            if(anchorsBaked)sprite.transform.localScale=authoredScale;
+            if(idle!=null)sprite.sprite=idle;
+            sprite.color=suitTint;
+            if(anchorsBaked)sprite.transform.localPosition=groundedFootLocalPosition-Vector3.up*Foot(sprite.sprite)*authoredScale.y;
+            if(carriedCrate!=null)carriedCrate.gameObject.SetActive(false);
         }
 
         void LateUpdate()
         {
             if(worker==null||worker.visualRenderer==null)return;
+            RefreshStableSorting();
             Vector3 delta=transform.position-previous;previous=transform.position;
             if(!worker.IsAlive)
             {
@@ -56,6 +98,9 @@ namespace DeepPressure
                 worker.visualRenderer.color=suitTint;
                 wasDead=false;wasWorking=false;idleElapsed=0;
             }
+            // A cloned corpse has a rotated renderer, but does not copy the transient wasDead flag.
+            // Restore the living orientation before even the paused early-out.
+            worker.visualRenderer.transform.localRotation=Quaternion.identity;
             if(worker.session!=null&&worker.session.IsSimulationPaused)return;
             float dt=Time.deltaTime;if(dt<=0)return;
             clock+=dt;

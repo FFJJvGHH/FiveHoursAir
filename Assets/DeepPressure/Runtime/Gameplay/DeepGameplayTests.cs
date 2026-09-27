@@ -7,8 +7,8 @@ namespace DeepPressure
     {
         public static string RunGameplayTests()
         {
-            ReservationAndBuild(); PauseAndNavigation(); ResearchProgress(); CraftStorage(); Excavation(); PipeConstruction(); PriorityAndDirectControl(); WorkerPreferences(); BlockedPlansAndPower();
-            return "Deep Pressure gameplay: 9 groups passed. Reservations/refunds/claims/warehouse pickup; worker arrival/build; pause/headroom/ladders; prerequisites/research; finite storage/crafting; excavation yield; paid pipe construction/conservation; priority/stop/resume/direct-move; enabled worker specialties; blocked plans and workstation power recovery.";
+            ReservationAndBuild(); PauseAndNavigation(); ResearchProgress(); CraftStorage(); Excavation(); PipeConstruction(); PriorityAndDirectControl(); WorkerPreferences(); BlockedPlansAndPower(); LadderDescentAndAnchors(); StepsAndGaps(); HazardousManualMovement(); RouteChangesKeepIntent(); NearestCrewAndWorkPositions(); ConsistentRouteCosts();
+            return "Deep Pressure gameplay: 15 groups passed. Reservations/refunds/claims/warehouse pickup; worker arrival/build; pause/headroom/ladders; prerequisites/research; finite storage/crafting; excavation yield; paid pipe construction/conservation; priority/stop/resume/direct-move; enabled worker specialties; blocked plans and workstation power recovery; supported ladder chains and downward construction; body-safe steps and one-cell gap crossings; manual hazardous movement without automatic retreat; topology-triggered detours keep manual targets and carried stock; nearest eligible idle crew and reachable work-side selection; consistent uncapped movement costs.";
         }
         public static string RunAll() => RunGameplayTests();
         static void ReservationAndBuild()
@@ -214,6 +214,172 @@ namespace DeepPressure
                 Assert(order.completedSeconds > progress,"Workstation recovery resumes retained research progress.");
             }
         }
+        static void LadderDescentAndAnchors()
+        {
+            using(var f=new Fixture())
+            {
+                // An open two-cell shaft below a platform. The second rung is out of arm's reach
+                // until the worker actually descends onto the first completed rung.
+                for(int x=0;x<=5;x++)for(int y=1;y<=3;y++)f.world.SetTerrain(x,y,TerrainKind.Basalt);
+                f.worker.TeleportToCell(new Vector2Int(4,4));
+                var ladder=f.Definition("shaft_ladder",DeepBuildingRole.Ladder,Vector2Int.one);ladder.requiresFloor=false;
+                Assert(!f.session.RequestBuild(ladder,new Vector2Int(11,4),out string reason),"A completely floating ladder must be rejected.");
+                Assert(f.session.RequestBuild(ladder,new Vector2Int(6,3),out reason),reason);
+                Assert(f.session.RequestBuild(ladder,new Vector2Int(6,2),out reason),reason);
+                var lower=f.session.Orders[f.session.Orders.Count-1];
+                bool stoodOnFirst=false;
+                for(int i=0;i<150&&!lower.IsTerminal;i++)
+                {
+                    f.session.Tick(.05f);
+                    if(f.worker.Cell==new Vector2Int(6,3)&&f.session.IsLadder(f.worker.Cell))stoodOnFirst=true;
+                }
+                Assert(lower.state==DeepWorkState.Completed&&stoodOnFirst,"Worker climbs onto the first rung to construct the next rung downward.");
+                Assert(f.session.RequestMove(f.worker,new Vector2Int(6,2),out reason),reason);f.Run(2);
+                Assert(f.worker.Cell==new Vector2Int(6,2),"Descending built ladder chain remains navigable.");
+            }
+            using(var f=new Fixture())
+            {
+                var ladder=f.Definition("anchored_chain",DeepBuildingRole.Ladder,Vector2Int.one);ladder.requiresFloor=false;
+                f.world.SetTerrain(8,3,TerrainKind.Basalt);
+                f.Station(ladder,new Vector2Int(9,3));f.Station(ladder,new Vector2Int(9,2));
+                Assert(f.session.IsLadder(new Vector2Int(9,2)),"A middle or upper wall anchor supports the entire connected ladder chain.");
+                Assert(!f.session.RequestDig(new Vector2Int(8,3),out string reason)&&reason.Contains("承重点"),"Removing the chain's final anchor is prevented.");
+                f.world.SetTerrain(10,2,TerrainKind.Basalt);
+                Assert(f.session.RequestDig(new Vector2Int(8,3),out reason),"A second anchor permits removing the old anchor: "+reason);
+                f.world.SetTerrain(8,3,TerrainKind.Empty);f.world.SetTerrain(10,2,TerrainKind.Empty);f.session.RebuildOccupancy();
+                Assert(!f.session.IsLadder(new Vector2Int(9,3))&&!f.session.IsStandable(new Vector2Int(9,2)),"An unsupported legacy ladder is not a floating navigation foothold.");
+            }
+        }
+        static void StepsAndGaps()
+        {
+            using(var f=new Fixture())
+            {
+                f.world.SetTerrain(3,1,TerrainKind.Basalt);
+                Assert(f.session.RequestMove(f.worker,new Vector2Int(3,2),out string reason),"One-cell step is climbable: "+reason);
+                f.Run(3);Assert(f.worker.Cell==new Vector2Int(3,2),"Worker steps up with body clearance.");
+                Assert(f.session.RequestMove(f.worker,new Vector2Int(5,1),out reason),"Worker can step back down: "+reason);
+                f.Run(3);Assert(f.worker.Cell==new Vector2Int(5,1),"Step-down arrives at the floor.");
+                for(int x=0;x<f.world.width;x++)for(int y=0;y<=2;y++)f.world.SetTerrain(x,y,x==6?TerrainKind.Empty:TerrainKind.Basalt);
+                f.worker.TeleportToCell(new Vector2Int(5,3));
+                Assert(f.session.RequestMove(f.worker,new Vector2Int(7,3),out reason),"One missing floor cell is crossable: "+reason);
+                f.Run(3);Assert(f.worker.Cell==new Vector2Int(7,3),"Worker crosses the gap without gravity cancelling the traversal.");
+                f.worker.TeleportToCell(new Vector2Int(5,3));f.world.SetTerrain(6,5,TerrainKind.Basalt);
+                Assert(!f.session.RequestMove(f.worker,new Vector2Int(7,3),out _),"A low ceiling over the gap blocks a jump that cannot fit the full body.");
+                f.world.SetTerrain(6,5,TerrainKind.Empty);for(int y=0;y<=2;y++)f.world.SetTerrain(7,y,TerrainKind.Empty);
+                Assert(!f.session.RequestMove(f.worker,new Vector2Int(8,3),out _),"Two missing floor cells require a constructed route.");
+            }
+        }
+        static void HazardousManualMovement()
+        {
+            using(var f=new Fixture())
+            {
+                f.world.defaultPressureKPa=100;f.world.defaultComposition=new Vector4(.21f,.79f,0,0);f.world.RebuildRooms();
+                f.session.lifeSupportEnabled=true;f.session.hazardsEnabled=false;
+                var field=f.session.Atmosphere;
+                for(int x=8;x<f.world.width;x++)for(int y=1;y<f.world.height;y++)
+                {
+                    var cell=new Vector2Int(x,y);field.Take(cell,field.Sample(cell).Total);
+                    field.Add(cell,GasMixture.FromPressure(100,field.CellVolumeM3,18,new Vector4(0,1,0,0)));
+                }
+                Assert(!f.session.IsBreathableAt(new Vector2Int(10,1)),"Fixture's remote work zone is not breathable.");
+                Assert(f.session.RequestMove(f.worker,new Vector2Int(10,1),out string reason),"A manual order may deliberately enter hazardous air: "+reason);
+                var movement=f.worker.currentOrder;
+                f.WaitFor(()=>movement.state==DeepWorkState.Completed,15,"Manual move must physically finish, including the low-oxygen movement penalty");
+                Assert(f.worker.Cell==new Vector2Int(10,1)&&Vector3.Distance(f.worker.transform.position,f.session.FootPosition(new Vector2Int(10,1)))<.001f,"Adequate reserve permits arriving at the exact hazardous-zone destination.");
+                f.session.excavationSeconds=20;
+                Assert(f.session.RequestDig(new Vector2Int(11,0),out reason),reason);
+                var work=f.session.Orders[f.session.Orders.Count-1];
+                f.WaitFor(()=>f.worker.currentOrder==work&&work.state==DeepWorkState.Working,8,"Worker must claim and physically start the requested hazardous-zone work");
+                float progress=work.completedSeconds;f.worker.airReserveSeconds=12;Vector2Int workCell=f.worker.Cell;int orders=f.session.Orders.Count;
+                f.Run(4);
+                Assert(f.worker.IsAlive&&f.worker.breathingUnsafe&&f.worker.airReserveSeconds<12,"The low-oxygen environment still consumes emergency air.");
+                Assert(f.worker.currentOrder==work&&f.worker.Cell==workCell&&work.completedSeconds>progress,"Low air does not replace the player's work target with automatic retreat.");
+                Assert(f.session.Orders.Count==orders,"Hazardous air never creates an unsolicited movement order.");
+            }
+        }
+        static void RouteChangesKeepIntent()
+        {
+            using(var f=new Fixture())
+            {
+                Assert(f.session.RequestMove(f.worker,new Vector2Int(13,1),out string reason),reason);
+                var move=f.worker.currentOrder;f.session.Tick(.1f);
+                f.world.SetTerrain(6,1,TerrainKind.Basalt);f.session.RebuildOccupancy();
+                f.WaitFor(()=>System.Array.IndexOf(f.worker.CapturePath(),new Vector2Int(6,2))>=0,2,"A new one-cell obstacle must cause an early step-over detour");
+                Assert(f.worker.currentOrder==move&&f.worker.Cell.x<5,"Replanning keeps the player's original move and happens before reaching the obstruction.");
+                f.WaitFor(()=>move.state==DeepWorkState.Completed,12,"Detour must reach the original destination");
+                Assert(f.session.RequestMove(f.worker,new Vector2Int(1,1),out reason),reason);move=f.worker.currentOrder;
+                f.world.SetTerrain(6,2,TerrainKind.Basalt);f.session.RebuildOccupancy();
+                f.WaitFor(()=>move.state==DeepWorkState.Blocked,2,"A fully closed route should wait without cancelling the command");
+                Assert(!move.IsTerminal&&move.requestedWorker==f.worker,"Temporarily unreachable manual movement stays attached to its intended worker.");
+                f.world.SetTerrain(6,1,TerrainKind.Empty);f.world.SetTerrain(6,2,TerrainKind.Empty);f.session.RebuildOccupancy();
+                f.WaitFor(()=>move.state==DeepWorkState.Completed,12,"Opening the route should resume the same command");
+                Assert(f.worker.Cell==new Vector2Int(1,1)&&f.session.Orders.Count==2,"Route recovery neither changes the destination nor creates replacement orders.");
+                Assert(f.session.RequestMove(f.worker,new Vector2Int(5,1),out reason),reason);move=f.worker.currentOrder;
+                f.world.SetTerrain(1,0,TerrainKind.Empty);f.session.RebuildOccupancy();f.session.Tick(.1f);
+                Assert(!move.IsTerminal,"Losing the supporting floor does not erase the player's original movement command.");
+                f.WaitFor(()=>move.state==DeepWorkState.Completed,8,"After falling one level the worker should step out and continue the same command");
+            }
+            using(var f=new Fixture())
+            {
+                var lamp=f.Definition("detour_lamp",DeepBuildingRole.Light,new Vector2Int(1,2));lamp.cost=new[]{new DeepItemAmount(f.ore,4)};
+                Assert(f.session.RequestBuild(lamp,new Vector2Int(12,1),out string reason),reason);
+                var build=f.session.Orders[0];
+                f.WaitFor(()=>build.materialsCollected&&build.state==DeepWorkState.Moving,5,"Fixture must pick up the paid construction stock");
+                f.world.SetTerrain(6,1,TerrainKind.Basalt);f.session.RebuildOccupancy();
+                f.WaitFor(()=>System.Array.IndexOf(f.worker.CapturePath(),new Vector2Int(6,2))>=0,2,"A carrying worker should take the new detour");
+                Assert(build.worker==f.worker&&build.materialsCollected&&!build.fetchingMaterials,"A viable detour does not discard carried materials or restart a warehouse pickup.");
+                f.WaitFor(()=>build.state==DeepWorkState.Completed,12,"Detoured construction must finish");
+                Assert(f.session.inventory.GetAmount(f.ore)==16&&f.session.inventory.UsedCapacity==16,"A rerouted build consumes exactly the original reservation once.");
+            }
+        }
+        static void NearestCrewAndWorkPositions()
+        {
+            using(var f=new Fixture())
+            {
+                var go=new GameObject("Nearby builder");go.transform.SetParent(f.root.transform);var nearby=go.AddComponent<DeepWorker>();nearby.session=f.session;nearby.TeleportToCell(new Vector2Int(10,1));f.session.Workers.Add(nearby);
+                f.session.excavationSeconds=20;
+                Assert(f.session.RequestDig(new Vector2Int(12,0),out string reason),reason);var dig=f.session.Orders[0];f.session.Tick(.05f);
+                Assert(dig.worker==nearby&&f.worker.currentOrder==null,"For equal specialties an idle nearby worker claims the job before an earlier-listed distant worker.");
+                f.worker.TeleportToCell(new Vector2Int(12,1));f.session.Tick(.5f);
+                Assert(dig.worker==nearby&&nearby.currentOrder==dig,"Another worker becoming closer does not steal an already assigned order.");
+            }
+            using(var f=new Fixture())
+            {
+                f.worker.TeleportToCell(new Vector2Int(5,1));f.world.SetTerrain(6,1,TerrainKind.Basalt);f.world.SetTerrain(6,2,TerrainKind.Basalt);
+                var ladder=f.Definition("route_compare_ladder",DeepBuildingRole.Ladder,new Vector2Int(1,3));ladder.requiresFloor=false;
+                f.Station(ladder,new Vector2Int(5,1));f.Station(ladder,new Vector2Int(7,1));
+                var go=new GameObject("Clear-route worker");go.transform.SetParent(f.root.transform);var direct=go.AddComponent<DeepWorker>();direct.session=f.session;direct.TeleportToCell(new Vector2Int(12,1));f.session.Workers.Add(direct);
+                Assert(f.session.RequestDig(new Vector2Int(7,0),out string reason),reason);var dig=f.session.Orders[0];f.session.Tick(.05f);
+                Assert(dig.worker==direct,"A worker five columns away with a clear route beats a worker two columns away who must climb around a two-cell wall.");
+            }
+            using(var f=new Fixture())
+            {
+                f.worker.TeleportToCell(new Vector2Int(10,1));
+                var wide=f.Definition("wide_machine",DeepBuildingRole.Light,new Vector2Int(4,2));
+                var small=f.Definition("small_machine",DeepBuildingRole.Light,new Vector2Int(1,2));
+                Assert(f.session.RequestBuild(wide,new Vector2Int(5,1),out string reason),reason);var nearSide=f.session.Orders[0];
+                Assert(f.session.RequestBuild(small,new Vector2Int(14,1),out reason),reason);f.session.Tick(.05f);
+                Assert(f.worker.currentOrder==nearSide&&nearSide.workCell==new Vector2Int(9,1),"Task distance is measured to the nearest reachable work side, not the building's far-away origin.");
+            }
+        }
+        static void ConsistentRouteCosts()
+        {
+            using(var f=new Fixture())
+            {
+                var ladder=f.Definition("cost_ladder",DeepBuildingRole.Ladder,new Vector2Int(1,4));ladder.requiresFloor=false;f.Station(ladder,new Vector2Int(0,1));
+                f.world.SetTerrain(2,0,TerrainKind.Empty);
+                Assert(DeepNavigation.TryFindPath(f.session,new Vector2Int(0,1),new[]{new Vector2Int(3,1),new Vector2Int(0,4)},out var path),"Both route choices have a physical path.");
+                Assert(path[path.Count-1]==new Vector2Int(0,4)&&DeepNavigation.TravelCost(path,new Vector2Int(0,1))==39,"Ladder and gap traversal costs remain consistent between route finding and task scoring.");
+            }
+            using(var f=new Fixture())
+            {
+                f.world.width=130;f.world.terrainKinds=new TerrainKind[f.world.width*f.world.height];
+                for(int x=0;x<f.world.width;x++)f.world.SetTerrain(x,0,TerrainKind.Basalt);f.world.RebuildRooms();
+                Assert(f.session.RequestDig(new Vector2Int(126,0),out string reason),reason);
+                Assert(f.session.RequestDig(new Vector2Int(110,0),out reason),reason);var nearer=f.session.Orders[1];f.session.Tick(.05f);
+                Assert(f.worker.currentOrder==nearer,"Different routes longer than 99 cells must not collapse into equal distance scores.");
+            }
+        }
         sealed class Fixture : IDisposable
         {
             public readonly GameObject root;
@@ -250,6 +416,12 @@ namespace DeepPressure
                 session.Buildings.Add(building); session.RebuildOccupancy(); session.RefreshStorageCapacity(); return building;
             }
             public void Run(float seconds) { for (int i = 0; i < Mathf.CeilToInt(seconds/.1f); i++) session.Tick(.1f); }
+            public void WaitFor(Func<bool> condition,float maximumSeconds,string context)
+            {
+                for(int i=0;i<Mathf.CeilToInt(maximumSeconds/.05f)&&!condition()&&worker.IsAlive;i++)session.Tick(.05f);
+                var order=worker.currentOrder;
+                Assert(condition(),context+". Cell="+worker.Cell+", feet="+worker.transform.position+", health="+worker.health+", air="+worker.airReserveSeconds+", activity="+worker.Status+", order="+(order==null?"none":order.kind+"/"+order.state+"/"+order.statusReason));
+            }
             public void Dispose() { UnityEngine.Object.DestroyImmediate(root); foreach (var item in temporary) if (item != null) UnityEngine.Object.DestroyImmediate(item); }
         }
         static void Assert(bool condition,string message) { if (!condition) throw new InvalidOperationException("Gameplay self-test: "+message); }

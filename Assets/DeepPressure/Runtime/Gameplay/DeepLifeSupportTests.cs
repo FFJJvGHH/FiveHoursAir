@@ -8,8 +8,8 @@ namespace DeepPressure
     {
         public static string RunAll()
         {
-            CollectionAndPower(); TraceCollection(); SupplyAndRespiration(); ReclaimerBackpressure(); CleanOxygenAcceptance(); ProductionTargets();
-            return "Life support: 6 integration groups passed. Wired collector and finite ledger; trace extraction conservation; local supply and respiratory conversion; exact 5-mol industrial recovery/storage backpressure; clean-product contamination rejection; production-target reservation/completion limits.";
+            CollectionAndPower(); TraceCollection(); SupplyAndRespiration(); ReclaimerBackpressure(); CleanOxygenAcceptance(); ProductionTargets(); AlgaeClosedLoop(); LocalAirWarnings(); IndependentAirHazards();
+            return "Life support: 9 integration groups passed. Finite gas ledgers, two-cycle algae recycling, local warnings, oxygen-only suffocation, inert gases, distinct CO2/vapor/pressure/high-oxygen damage causes and tunable exposure damage.";
         }
         static void CollectionAndPower()
         {
@@ -112,6 +112,94 @@ namespace DeepPressure
                 foreach (var order in f.session.Orders) Assert(order.IsTerminal,"Reaching the inventory target leaves no extra production order queued.");
             }
         }
+        static void AlgaeClosedLoop()
+        {
+            using(var f=new Fixture(100))
+            {
+                var plant=f.Station("oxygen_diffuser",DeepBuildingRole.Structure,new Vector2Int(8,1));
+                plant.definition.exchangesRoomGas=true;plant.definition.fuelItem=f.reagent;
+                Assert(f.session.inventory.TryAdd(f.reagent,20),"Fixture culture stock fits.");
+                var a=f.Worker(new Vector2Int(6,1));var b=f.Worker(new Vector2Int(8,1));var c=f.Worker(new Vector2Int(10,1));
+                a.automationPaused=b.automationPaused=c.automationPaused=true;
+                var before=f.Total();double produced=0,consumed=0,removed=0;
+                for(int i=0;i<2400;i++)
+                {
+                    f.session.Tick(.5f);produced+=f.session.OxygenSupplyRate*.5;consumed+=f.session.OxygenDemandRate*.5;removed+=f.session.CarbonRemovalRate*.5;
+                }
+                var after=f.Total();
+                Assert(a.health==100&&b.health==100&&c.health==100&&f.session.UnsafeWorkerCount==0,"Three workers near a fueled algae planter survive two cycles without phantom local suffocation.");
+                Assert(produced>consumed*.95,"Respiratory CO2 supports sustained recycling after local diffusion startup.");
+                Assert(Math.Abs(produced-removed)<1e-6,"Algae oxygen telemetry equals actual carbon removal.");
+                Assert(Math.Abs(after.oxygen-before.oxygen-produced+consumed)<.001,"Supply and demand explain the actual oxygen inventory.");
+                Assert(Math.Abs(after.Total-before.Total)<1e-6,"The closed respiratory/photosynthesis loop preserves total gas.");
+                Assert(f.session.inventory.GetAmount(f.reagent)<20,"Photosynthesis consumes a finite culture budget.");
+            }
+        }
+        static void LocalAirWarnings()
+        {
+            using(var f=new Fixture(100))
+            {
+                var worker=f.Worker(new Vector2Int(3,1));worker.automationPaused=true;
+                var cell=f.session.BreathingCell(worker.Cell);var field=f.session.Atmosphere;
+                field.Take(cell,100000);field.Add(cell,GasMixture.FromPressure(100,field.CellVolumeM3,field.TemperatureC(cell),new Vector4(.21f,.78f,.01f,0)));
+                f.session.Tick(.01f);
+                Assert(!worker.environmentUnsafe&&worker.environmentEfficiency<1&&f.session.AirWarningWorkerCount==1,"1% CO2 reduces comfort/efficiency without immediate suffocation.");
+                field.Take(cell,100000);field.Add(cell,GasMixture.FromPressure(100,field.CellVolumeM3,field.TemperatureC(cell),new Vector4(.21f,.74f,.05f,0)));
+                Assert(f.session.IsBreathableAt(worker.Cell)&&f.session.LocalAirStatus(worker.Cell).Contains("二氧化碳"),"Adequate oxygen remains breathable while CO2 toxicity is explicitly identified separately.");
+                worker.airReserveSeconds=10;
+                field.Take(cell,100000);field.Add(cell,GasMixture.FromPressure(100,field.CellVolumeM3,field.TemperatureC(cell),new Vector4(.21f,.79f,0,0)));
+                f.session.Tick(.5f);
+                Assert(worker.airReserveSeconds>11.5f,"Clean air quickly restores emergency breathing reserve.");
+                Assert(f.session.breathingMolPerSecond<.1f,"Default metabolism replaces the excessive legacy .25 mol/s rate.");
+            }
+        }
+        static void IndependentAirHazards()
+        {
+            using(var f=new Fixture(100))
+            {
+                var worker=f.Worker(new Vector2Int(3,1));worker.airReserveSeconds=0;
+                f.SetBreathingAir(worker,100,new Vector4(.21f,.6f,0,0),new Vector2(.19f,0));f.session.Tick(.5f);
+                Assert(worker.IsAlive&&worker.health==100&&!worker.breathingUnsafe&&!worker.environmentUnsafe&&worker.airReserveSeconds>1.9f,"N2 and CH4 never spend breathing reserve when O2 partial pressure is sufficient.");
+                Assert(f.session.HypoxicWorkerCount==0&&!worker.Status.Contains("窒息"),"Inert-gas presence alone does not count as hypoxia or display suffocation.");
+            }
+            using(var f=new Fixture(100))
+            {
+                var worker=f.Worker(new Vector2Int(3,1));worker.airReserveSeconds=0;
+                f.SetBreathingAir(worker,100,new Vector4(.21f,.74f,.05f,0));f.session.Tick(.5f);
+                Assert(worker.health<100&&worker.health>99&&!worker.breathingUnsafe&&worker.environmentUnsafe&&worker.airReserveSeconds>1.9f,"CO2 causes gradual toxic damage while sufficient O2 restores breathing reserve.");
+                Assert(f.session.HypoxicWorkerCount==0&&f.session.UnsafeWorkerCount==1&&worker.Status.Contains("二氧化碳")&&!worker.Status.Contains("窒息"),"Toxicity is counted and displayed distinctly from suffocation.");
+                worker.health=.01f;f.SetBreathingAir(worker,100,new Vector4(.21f,.74f,.05f,0));f.session.Tick(.1f);
+                Assert(!worker.IsAlive&&worker.deathCause=="二氧化碳中毒","Lethal CO2 exposure has the correct cause of death.");
+            }
+            CheckSeparateExposureDeath(100,new Vector4(.21f,.74f,0,0),new Vector2(0,.05f),"工业蒸气中毒");
+            CheckSeparateExposureDeath(220,new Vector4(.1f,.9f,0,0),Vector2.zero,"高压损伤");
+            CheckSeparateExposureDeath(25,new Vector4(1,0,0,0),Vector2.zero,"低压损伤");
+            CheckSeparateExposureDeath(100,new Vector4(.5f,.5f,0,0),Vector2.zero,"高氧损伤");
+            using(var f=new Fixture(100))
+            {
+                var worker=f.Worker(new Vector2Int(3,1));worker.airReserveSeconds=0;worker.health=.1f;
+                f.SetBreathingAir(worker,100,new Vector4(.05f,.95f,0,0));f.session.Tick(.1f);
+                Assert(!worker.IsAlive&&worker.deathCause=="窒息","Only actual oxygen insufficiency causes oxygen-deprivation suffocation.");
+            }
+            using(var f=new Fixture(100))
+            {
+                var tuning=f.Asset<DeepSimulationTuning>();tuning.carbonToxicityDamagePerSecond=0;f.session.simulationTuning=tuning;
+                var worker=f.Worker(new Vector2Int(3,1));worker.airReserveSeconds=0;
+                f.SetBreathingAir(worker,100,new Vector4(.21f,.74f,.05f,0));f.session.Tick(.5f);
+                Assert(worker.health==100&&worker.environmentUnsafe&&!worker.breathingUnsafe&&worker.airReserveSeconds>1.9f,"Setting toxic damage to zero preserves an explicit discomfort warning without hidden suffocation damage.");
+            }
+        }
+        static void CheckSeparateExposureDeath(float pressure,Vector4 fractions,Vector2 reactive,string cause)
+        {
+            using(var f=new Fixture(100))
+            {
+                var worker=f.Worker(new Vector2Int(3,1));worker.airReserveSeconds=0;
+                f.SetBreathingAir(worker,pressure,fractions,reactive);f.session.Tick(.5f);
+                Assert(worker.IsAlive&&worker.health<100&&!worker.breathingUnsafe&&worker.airReserveSeconds>1.9f,cause+" must damage health independently while oxygen reserve recovers.");
+                worker.health=.0001f;f.SetBreathingAir(worker,pressure,fractions,reactive);f.session.Tick(.1f);
+                Assert(!worker.IsAlive&&worker.deathCause==cause,"Independent exposure death cause: "+cause);
+            }
+        }
         sealed class Fixture : IDisposable
         {
             readonly GameObject root;
@@ -153,6 +241,11 @@ namespace DeepPressure
                 var worker = go.AddComponent<DeepWorker>(); worker.session = session; session.Workers.Add(worker); return worker;
             }
             public void SetGas(GasNode node,GasMixture gas) { network.RegisterExternalExchange(gas-node.gas); node.gas = gas; }
+            public void SetBreathingAir(DeepWorker worker,float pressure,Vector4 fractions,Vector2 reactive=default)
+            {
+                var field=session.Atmosphere;var cell=session.BreathingCell(worker.Cell);
+                field.Take(cell,100000);field.Add(cell,GasMixture.FromPressure(pressure,field.CellVolumeM3,field.TemperatureC(cell),fractions,reactive));
+            }
             public GasMixture Total() => session.Atmosphere.TotalInventory()+network.TotalInventory();
             public void Dispose() { UnityEngine.Object.DestroyImmediate(root); foreach (var asset in assets) UnityEngine.Object.DestroyImmediate(asset); }
         }

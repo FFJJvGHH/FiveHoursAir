@@ -9,7 +9,7 @@ namespace DeepPressure
         static float lastPlayed;
         public static void Play(bool success)
         {
-            if(!Application.isPlaying || Time.unscaledTime-lastPlayed<.07f)return;
+            if(!Application.isPlaying || success&&Time.unscaledTime-lastPlayed<.07f)return;
             lastPlayed=Time.unscaledTime;
             if(source==null)
             {
@@ -18,6 +18,7 @@ namespace DeepPressure
             }
             if(positive==null)positive=Tone(740,1000,.085f);
             if(negative==null)negative=Tone(240,170,.13f);
+            if(!success)source.Stop();
             source.PlayOneShot(success?positive:negative,.16f);
         }
         static AudioClip Tone(float first,float last,float duration)

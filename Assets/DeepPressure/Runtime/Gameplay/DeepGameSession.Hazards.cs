@@ -46,25 +46,14 @@ namespace DeepPressure
         }
         public string ExcavationRisk(Vector2Int cell)
         {
-            if (world == null || !hazardsEnabled || world.GetTerrain(cell.x,cell.y) == TerrainKind.Empty) return string.Empty;
-            var breach = MeasureBreach(cell);
-            if (breach != null && breach.difference >= breachShockThresholdKPa)
-                return "压差 " + breach.difference.ToString("0") + " kPa · 凿穿会冲退近处人员并损耗应急气量";
-            foreach (var direction in PowerNeighbors)
-            {
-                var field = Atmosphere; var neighbor = cell+direction;
-                var room = world.RoomAt(neighbor);
-                GasMixture gas = field != null && field.IsInitialized ? field.Sample(neighbor) : room == null ? default : room.gas;
-                if (gas.Total <= 0) continue;
-                if (gas.methane/gas.Total >= .04) return "邻侧含可燃气 · 先关闭热作设备再开挖";
-                if (gas.processVapor/gas.Total >= .005) return "邻侧含工业蒸气 · 开挖后会沿通路扩散，可密封回收";
-            }
+            // Preserve callers/save compatibility; hidden chambers have no remote warning.
             return string.Empty;
         }
         public void PrepareExcavationHazard(Vector2Int cell)
         {
             pendingBreaches.Remove(cell);
             if (!hazardsEnabled || world == null) return;
+            breachShockThresholdKPa=Mathf.Max(1,SimulationTuning.pressureShockThresholdKPa);
             var breach = MeasureBreach(cell);
             if (breach != null && breach.difference >= breachShockThresholdKPa) pendingBreaches[cell] = breach;
         }
@@ -81,7 +70,9 @@ namespace DeepPressure
             foreach (var worker in Workers)
             {
                 if (worker == null || !worker.IsAlive || Vector2Int.Distance(worker.Cell,cell) > 2.5f+strength*.25f) continue;
-                DamageWorker(worker,strength*7,"气压冲击"); if(!worker.IsAlive)continue;
+                float distance=Vector2Int.Distance(worker.Cell,cell);
+                float exposure=Mathf.Lerp(1,.35f,Mathf.Clamp01((distance-1)/2.5f));
+                DamageWorker(worker,strength*strength*SimulationTuning.pressureShockDamageScale*exposure,"气压冲击"); if(!worker.IsAlive)continue;
                 worker.airReserveSeconds = Mathf.Max(0,worker.airReserveSeconds-8*strength);
                 Vector2Int step = Mathf.Abs(direction.x) >= Mathf.Abs(direction.y) ? new Vector2Int(direction.x >= 0 ? 1 : -1,0) : new Vector2Int(0,direction.y >= 0 ? 1 : -1);
                 var target = worker.Cell+step;

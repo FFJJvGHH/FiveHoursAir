@@ -33,7 +33,7 @@ namespace DeepPressure
         readonly Dictionary<DeepParticleFeedback,bool> feedbackActivity=new Dictionary<DeepParticleFeedback,bool>();
         bool ColonyHasSelection=>selectedWorker!=null||selectedBuilding!=null||selectedOrder!=null&&!selectedOrder.IsTerminal;
         bool ColonyPaused=>session!=null?session.paused:network!=null&&network.paused;
-        bool ColonyBlocksPointer=>pauseMenu||(colonyPanel!=ColonyPanel.None&&colonyRect.Contains(pointer))||inventoryRect.Contains(pointer);
+        bool ColonyBlocksPointer=>pauseMenu||(presentedPanel!=ColonyPanel.None&&colonyRect.Contains(pointer))||inventoryRect.Contains(pointer)||(ShowBuildSlot&&BuildSlotRect.Contains(pointer));
 
         void InitializeColony()
         {
@@ -43,12 +43,24 @@ namespace DeepPressure
         void UpdateColonyInterface()
         {
             InitializeColony();
-            float width=colonyPanel==ColonyPanel.Research?uiWidth-38:colonyPanel==ColonyPanel.Workers?590:416;
+            if(lastMotionPanel!=colonyPanel)
+            {
+                if(colonyPanel!=ColonyPanel.None){presentedPanel=colonyPanel;panelOpenedAt=Time.unscaledTime;}
+                else panelClosedAt=Time.unscaledTime;
+                lastMotionPanel=colonyPanel;
+            }
+            if(colonyPanel==ColonyPanel.None&&Time.unscaledTime-panelClosedAt>=.16f)presentedPanel=ColonyPanel.None;
+            var layoutPanel=presentedPanel;
+            float width=layoutPanel==ColonyPanel.Research?uiWidth-38:layoutPanel==ColonyPanel.Craft?Mathf.Min(940,uiWidth-38):layoutPanel==ColonyPanel.Workers?590:416;
             colonyRect=new Rect(19,74,width,uiHeight-190);
+            colonyRect.x-=16*(1-PanelPresence);
             inventoryRect=new Rect(142,17,Mathf.Max(0,uiWidth-475),39);
         }
         void SetColonyPause(bool value){if(session!=null)session.paused=value;if(network!=null)network.paused=value;}
         void SetColonySpeed(float value){if(session!=null)session.speed=value;if(network!=null)network.simulationSpeed=value;}
+        float CurrentColonySpeed=>session!=null?session.speed:network!=null?network.simulationSpeed:1;
+        public static float NextSpeed(float current)=>current<2?2:current<4?4:current<6?6:1;
+        void CycleColonySpeed(){SetColonySpeed(NextSpeed(CurrentColonySpeed));}
         void ClearColonySelection(){selectedWorker=null;selectedBuilding=null;selectedOrder=null;}
         void ActivateColonyTool(int index)
         {
@@ -100,9 +112,18 @@ namespace DeepPressure
         }
         void DrawColonyPanels()
         {
-            if(pauseMenu||colonyPanel==ColonyPanel.None)return;
+            // A toolbar click can change the requested panel earlier in this same OnGUI event.
+            // Adopt it before drawing; the outgoing panel must never overwrite the new request.
+            if(!pauseMenu&&colonyPanel!=ColonyPanel.None&&colonyPanel!=presentedPanel)UpdateColonyInterface();
+            if(pauseMenu||presentedPanel==ColonyPanel.None)return;
+            bool exiting=colonyPanel==ColonyPanel.None;
+            if(exiting&&Event.current.type!=EventType.Repaint&&Event.current.type!=EventType.Layout)return;
+            var requestedPanel=colonyPanel;Color previousColor=GUI.color;bool previousEnabled=GUI.enabled;
+            colonyPanel=presentedPanel;GUI.color=WithAlpha(GUI.color,PanelPresence);GUI.enabled&=!exiting;
+            try
+            {
             PanelBackground(colonyRect);
-            string heading=colonyPanel==ColonyPanel.Build?"建造":colonyPanel==ColonyPanel.Workers?"人员与工单":colonyPanel==ColonyPanel.Research?"研究与工程":colonyPanel==ColonyPanel.Resources?"库存与生产":"制造";
+            string heading=colonyPanel==ColonyPanel.Build?"建造设施":colonyPanel==ColonyPanel.Workers?"人员与工单":colonyPanel==ColonyPanel.Research?"研究与工程":colonyPanel==ColonyPanel.Resources?"基地库存":craftStation==null?"生产设备":"设备生产 · "+craftStation.definition.displayName;
             Icon icon=colonyPanel==ColonyPanel.Build?Icon.Build:colonyPanel==ColonyPanel.Workers?Icon.People:colonyPanel==ColonyPanel.Research?Icon.Research:Icon.Craft;
             DrawIcon(icon,new Rect(colonyRect.x+17,colonyRect.y+16,22,22),Mint);
             Label(new Rect(colonyRect.x+52,colonyRect.y+12,colonyRect.width-100,29),heading,title,White);
@@ -110,6 +131,8 @@ namespace DeepPressure
             if(Click(close)){colonyPanel=ColonyPanel.None;return;}
             if(session==null||session.catalog==null){Label(new Rect(colonyRect.x+18,colonyRect.y+70,colonyRect.width-36,30),"正在准备基地",body,Muted);return;}
             switch(colonyPanel){case ColonyPanel.Build:DrawBuildPanel();break;case ColonyPanel.Workers:DrawWorkersPanel();break;case ColonyPanel.Research:DrawResearchPanel();break;case ColonyPanel.Craft:DrawCraftPanel();break;case ColonyPanel.Resources:DrawResourcePanel();break;}
+            }
+            finally{GUI.color=previousColor;GUI.enabled=previousEnabled;if(exiting)colonyPanel=requestedPanel;}
         }
         void DrawBuildPanelLegacy()
         {
@@ -173,7 +196,7 @@ namespace DeepPressure
         void DrawOrderRow(DeepWorkOrder order,Rect rect)
         {
             Rounded(rect,new Color(.066f,.105f,.118f),7);
-            Label(new Rect(rect.x+10,rect.y+3,rect.width-43,21),order.label,body,White);
+            Label(new Rect(rect.x+10,rect.y+3,rect.width-43,21),order.label+(order.kind==DeepWorkKind.Craft?" ×"+order.batches:""),body,White);
             string state=order.worker!=null?order.worker.displayName+" · ":"";
             state+=string.IsNullOrEmpty(order.statusReason)?OrderState(order):order.statusReason;
             Label(new Rect(rect.x+10,rect.y+24,rect.width-45,20),state,small,order.state==DeepWorkState.Blocked?Amber:Muted);
@@ -222,45 +245,7 @@ namespace DeepPressure
         }
         void DrawCraftPanel()
         {
-            float x=colonyRect.x+16,y=colonyRect.y+57,width=colonyRect.width-32;
-            var recipes=session.catalog.recipes.Where(r=>r!=null&&(selectedBuilding==null||selectedBuilding.definition==null||r.requiredBuildingId==selectedBuilding.definition.id)).ToArray();
-            int recipeRows=Mathf.Max(1,Mathf.Min(3,(int)((colonyRect.height-230)/67))),recipePages=Mathf.Max(1,Mathf.CeilToInt(recipes.Length/(float)recipeRows));
-            recipePage=Mathf.Clamp(recipePage,0,recipePages-1);
-            foreach(var recipe in recipes.Skip(recipePage*recipeRows).Take(recipeRows))
-            {
-                Rect rect=new Rect(x,y,width,59);Rounded(rect,recipeChoice==recipe?new Color(.13f,.25f,.22f):new Color(.065f,.105f,.12f),8);
-                DrawAssetIcon(recipe.icon,new Rect(x+9,y+10,34,34),White,Icon.Craft);
-                Label(new Rect(x+53,y+5,width-61,22),recipe.displayName,body,White);
-                Label(new Rect(x+53,y+30,width-61,19),CostText(recipe.inputs)+"  →  "+CostText(recipe.outputs),small,Muted);
-                RegisterHover("recipe"+recipe.id,rect,recipe.displayName,recipe.description);
-                if(Click(rect))recipeChoice=recipe;y+=67;
-            }
-            if(recipePages>1)
-            {
-                SmallButton(new Rect(x,y,72,24),"上一页",()=>recipePage=Mathf.Max(0,recipePage-1));
-                Label(new Rect(x+95,y,168,24),(recipePage+1)+" / "+recipePages+"  ·  科技解锁更多配方",tiny,Muted);
-                SmallButton(new Rect(x+width-72,y,72,24),"下一页",()=>recipePage=Mathf.Min(recipePages-1,recipePage+1));y+=33;
-            }
-            if(recipeChoice!=null)
-            {
-                y+=8;Label(new Rect(x,y,65,28),"数量",body,Muted);
-                SmallButton(new Rect(x+75,y,30,28),"−",()=>craftBatches=Mathf.Max(1,craftBatches-1));
-                Label(new Rect(x+113,y,39,28),craftBatches.ToString(),body,White);
-                SmallButton(new Rect(x+150,y,30,28),"+",()=>craftBatches=Mathf.Min(99,craftBatches+1));
-                bool can=session.CanCraft(recipeChoice,craftBatches,out string reason);
-                Rect submit=new Rect(x+197,y,width-197,28);ActionButton(submit,Icon.Craft,"安排制造",can);
-                RegisterHover("craftsubmit",submit,"安排制造",can?CostText(recipeChoice.inputs,craftBatches):reason);
-                if(Click(submit)){bool ok=session.RequestCraft(recipeChoice,craftBatches,out string result);ShowToast(result,ok);}y+=43;
-                var target=session.ProductionTargetFor(recipeChoice.id);
-                Label(new Rect(x,y,100,28),"目标库存",small,Muted);
-                SmallButton(new Rect(x+83,y,27,27),"−",()=>productionAmount=Mathf.Max(1,productionAmount-5));
-                Label(new Rect(x+119,y,39,27),productionAmount.ToString(),body,White);
-                SmallButton(new Rect(x+153,y,27,27),"+",()=>productionAmount=Mathf.Min(999,productionAmount+5));
-                SmallButton(new Rect(x+193,y,width-193,27),target!=null&&target.enabled?"暂停补货":"维持库存",()=>session.SetProductionTarget(recipeChoice,productionAmount,!(target!=null&&target.enabled)));y+=36;
-                Label(new Rect(x,y,width,26),target==null?"开启后低于目标自动投料，达到目标停止。":target.status??"等待检查库存",small,Muted);y+=32;
-            }
-            foreach(var order in session.Orders.Where(o=>o!=null&&!o.IsTerminal&&o.recipe!=null).Take(Mathf.Max(0,(int)((colonyRect.yMax-y-10)/57))))
-            {DrawOrderRow(order,new Rect(x,y,width,50));y+=57;}
+            DrawStationProductionPanel();
         }
         void FindColonyHover(bool blocked)
         {
@@ -317,7 +302,7 @@ namespace DeepPressure
                 RectInt bounds;
                 if(colonyTool==ColonyTool.Build&&buildChoice!=null)
                 {bounds=new RectInt(cell,buildChoice.footprint);allowed=session.CanBuild(buildChoice,cell,out reason);}
-                else{bounds=new RectInt(cell,Vector2Int.one);allowed=session.CanDig(cell,out reason);if(allowed)reason=session.ExcavationRisk(cell);}
+                else{bounds=new RectInt(cell,Vector2Int.one);allowed=session.CanDig(cell,out reason);}
                 Rect rect=WorldBounds(bounds);Color color=!allowed?new Color(.94f,.34f,.27f):string.IsNullOrEmpty(reason)?Mint:Amber;
                 Fill(rect,WithAlpha(color,.13f));Brackets(rect,WithAlpha(color,.92f),Mathf.Min(12,rect.width*.25f));
                 if(colonyTool==ColonyTool.Build&&buildChoice!=null&&buildChoice.icon!=null)DrawAssetIcon(buildChoice.icon,Inset(rect,2),WithAlpha(color,.38f),Icon.Build);
@@ -408,7 +393,9 @@ namespace DeepPressure
                 if(selectedWorker.currentOrder!=null&&!selectedWorker.currentOrder.IsTerminal){DrawOrderRow(selectedWorker.currentOrder,new Rect(x,y,220,55));y+=65;}
                 else{Label(new Rect(x,y,220,26),"等待新任务",small,Muted);y+=45;}
                 Label(new Rect(x,y,220,24),"右键地点 · 派遣移动",small,Mint);y+=32;
-                Label(new Rect(x,y,220,22),selectedWorker.environmentUnsafe?"气氛不适 · 呼吸缓冲 "+selectedWorker.airReserveSeconds.ToString("0")+"秒":"当前气氛适宜作业",small,selectedWorker.environmentUnsafe?Amber:Muted);y+=27;
+                Rect airReadout=new Rect(x,y,220,22);
+                Label(airReadout,selectedWorker.breathingUnsafe?"缺氧 · 呼吸储备 "+selectedWorker.airReserveSeconds.ToString("0")+"秒":selectedWorker.environmentUnsafe?selectedWorker.environmentCondition:selectedWorker.environmentEfficiency<1?"空气不适 · 工作效率降低":"氧气充足 · 正常呼吸",small,selectedWorker.environmentUnsafe?Amber:Muted);
+                RegisterHover("workerair",airReadout,"当地空气",session.LocalAirStatus(selectedWorker.Cell));y+=27;
                 var picked=selectedWorker;
                 SmallButton(new Rect(x,y,104,29),picked.automationPaused?"恢复调度":"停止待命",()=>{if(picked.automationPaused)session.ResumeWorker(picked);else{bool ok=session.RequestStop(picked,out string reason);ShowToast(reason,ok);}});
                 SmallButton(new Rect(x+113,y,104,29),"人员分工",()=>colonyPanel=ColonyPanel.Workers);return;
@@ -447,7 +434,7 @@ namespace DeepPressure
                 if(order!=null){DrawOrderRow(order,new Rect(x,y,220,51));y+=60;}
             }
             if(definition.role==DeepBuildingRole.Fabricator)
-            {Rect craft=new Rect(x,y,220,31);ActionButton(craft,Icon.Craft,"制造配方",true);if(Click(craft)){colonyPanel=ColonyPanel.Craft;recipeChoice=null;}}
+            {Rect craft=new Rect(x,y,220,31);ActionButton(craft,Icon.Craft,"打开本台生产",true);if(Click(craft))OpenStationProduction(building);}
             if(definition.role==DeepBuildingRole.Research)
             {Rect research=new Rect(x,y,220,31);ActionButton(research,Icon.Research,"打开科技树",true);if(Click(research))colonyPanel=ColonyPanel.Research;}
         }
@@ -575,7 +562,7 @@ namespace DeepPressure
             }
         }
         void PauseButton(Rect rect,Icon icon,string text,Action action){ActionButton(rect,icon,text,true);if(Click(rect))action();}
-        void SmallButton(Rect rect,string text,Action action){Rounded(rect,new Color(.12f,.20f,.20f),6);Label(Inset(rect,6),text,small,White);if(Click(rect))action();}
+        void SmallButton(Rect rect,string text,Action action){var visual=ButtonVisual(rect);Rounded(visual,new Color(.12f,.20f,.20f),6);Label(Inset(visual,6),text,small,White);if(Click(rect))action();}
         void PanelBackground(Rect rect){Rounded(new Rect(rect.x+2,rect.y+5,rect.width,rect.height),new Color(0,0,0,.2f),12);Rounded(rect,Border,12);Rounded(Inset(rect,1),Panel,11);}
         bool CanAfford(DeepItemAmount[] costs){return session.inventory!=null&&session.inventory.CanAfford(costs,out _);}
         string CostText(DeepItemAmount[] amounts,int batches=1){if(amounts==null||amounts.Length==0)return "无材料消耗";return string.Join(" · ",amounts.Where(c=>c.item!=null).Select(c=>c.item.displayName+" "+(c.amount*batches)));}
@@ -595,7 +582,7 @@ namespace DeepPressure
         static void DrawAssetIcon(Sprite sprite,Rect rect,Color color,Icon fallback)
         {
             if(sprite==null){DrawIcon(fallback,rect,color);return;}
-            var previous=GUI.color;GUI.color=color;Rect texture=sprite.textureRect;
+            var previous=GUI.color;GUI.color=color*previous;Rect texture=sprite.textureRect;
             float aspect=texture.width/Mathf.Max(1,texture.height),height=Mathf.Min(rect.height,rect.width/aspect),width=height*aspect;
             Rect draw=new Rect(rect.center.x-width*.5f,rect.center.y-height*.5f,width,height);
             GUI.DrawTextureWithTexCoords(draw,sprite.texture,new Rect(texture.x/sprite.texture.width,texture.y/sprite.texture.height,texture.width/sprite.texture.width,texture.height/sprite.texture.height));GUI.color=previous;

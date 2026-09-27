@@ -54,3 +54,17 @@ Light2D 的 Normal Map Quality 需要启用，光源高度/距离需要给出可
 另对每套 Color / Normal / AO 以 8px 间隔抽样检查：三图 alpha 不匹配数均为 **0**，AO 非灰度样本数均为 **0**，四角透明，尺寸均为 **512 × 512**。不透明法线样本最小蓝通道分别为 145 / 148 / 144，符合可见表面朝前的半球；重建法线平均单位长度误差分别约 0.021 / 0.015 / 0.009（倒角和微小细节的像素平均会缩短法线）。本验证检查的是渲染数据；Unity 动态灯光的最终效果仍应在实际场景中检查。
 
 当前是少量工业设备的管线验证。尚未覆盖角色动画、设备破损状态、完整地形 tileset、全套管道转角/三通图集，也未提供互相遮挡的动态设备拆件。相机法线适合当前固定视角；若后续让设备图像在 3D 中自由旋转，需重新设计视角或采用真实网格。AO 烘焙了设备自身部件之间的遮挡，无法自动反映邻近建筑带来的遮挡。
+
+## v0.8 仓库与运行表现修正
+
+仓库原图 `crate_Color.png` 本身只有一个箱体。画面中右上方的小箱来自 `DeepCatalogBuilder` 自动添加的 `Stacked bin` 子物体，与 AO、法线或 PNG 透明边界无关。现在取消这段生成逻辑；`DeepPresentationUpgrade.ApplyToCatalogAndLoadedScenes` 精确移除旧预制体的该子物体，并把剩余箱体重新按可见底脚对齐。已有场景通过同一升级入口更新，不重建地形。
+
+`DeepPressureArtImporter` 现在在导入 Color、Normal 或 AO 后自动匹配同名前缀的三个文件，不再依赖每次手动点击绑定。Color 显式使用 sRGB，Normal 使用原始 Normal Map 数据、线性空间，AO 使用线性灰度 Default 纹理；数据贴图关闭透明边缘颜色处理。已存在的其他 Secondary Texture（例如专门的灯光遮罩）保留。尺寸不一致时拒绝绑定并报告；工业资产优先读取配套 Layout 的 PPU 和 pivot。Preview 是带烘焙灯光的 Default 预览纹理，不作为运行时 Sprite 使用。
+
+`Sprite-Lit-AO` 提供独立 AO 强度、饱和度和色调参数，AO 仍只进入 `_AOMap`。工业与人物共享材质使用 AO 强度 0.30、饱和度 0.90 和很轻的青绿统一色调，使暖白外壳、铜管和薄荷绿指示灯处于同一环境，保留材料和警报的区别；地形材质使用自己的参数。普通前向渲染路径也应用相同 AO，避免预览与 URP 2D 明暗规则相反。
+
+设备底座不摆动。合成台和研究台按实际 `Working` 订单运行屏幕扫描与风扇，停工、关机、缺电时停下，完工有短暂暖色确认；手工设备无需耗电也具备运行表现。仓库物资变化有指示灯确认，打印舱有扫描线，气体设备有实际压力表指针。藻类制氧器的气泡只在该设备实际输出气体时出现，等待原料、关闭或达到供气上限时停止；运行状态由每台建筑的实际气体交换速率驱动。
+
+本轮对 3 个工业设备和 5 个 Props 原始 PNG 每 8px 抽样：全部为 512×512，三贴图 alpha 不匹配数均为 0、AO 非灰度数均为 0；不透明法线样本最小蓝通道范围 142–195，符合可见表面朝向观察者。程序验收入口 `ValidateMachinePresentation(catalog)` 检查单箱仓库、动态部件绑定、无电力手工工作、阻塞、暂停、完工确认、真实供气与底座固定；Unity 实际执行结果由本轮总验收记录报告。
+
+依据：[Unity 的 Sprite Secondary Textures](https://docs.unity.com/en-us/engine/6000.6/manual/unity2d/2d-urp/2d-index/secondary-textures)、[Blender Normal Map 节点](https://docs.blender.org/manual/en/3.0/render/shader_nodes/vector/normal_map.html)。当前项目使用 URP 14，具体着色器接入以项目安装的 URP 源码为准。

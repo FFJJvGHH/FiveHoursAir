@@ -7,7 +7,12 @@ Shader "DeepPressure/Sprite-Lit-AO"
         _MaskTex("Mask", 2D) = "white" {}
         _AOMap("Ambient Occlusion", 2D) = "white" {}
         _NormalMap("Normal Map", 2D) = "bump" {}
+        _AOIntensity("AO intensity", Range(0,1)) = 0.45
+        _PaletteSaturation("Palette saturation", Range(0,1)) = 1
+        _PaletteTint("Palette tint", Color) = (1,1,1,1)
+        _MinimumLight("Subject fill light", Range(0,1)) = 0
         [HideInInspector] _TerrainPaletteTex("Terrain material palette", 2D) = "black" {}
+        [HideInInspector] _TerrainSourcePaletteTex("Authored terrain palette", 2D) = "black" {}
         [HideInInspector] _TerrainBlendEnabled("Terrain material blending", Float) = 0
 
         // Legacy properties. They're here so that materials using this shader can gracefully fallback to the legacy sprite shader.
@@ -73,6 +78,8 @@ Shader "DeepPressure/Sprite-Lit-AO"
             half4 _MainTex_ST;
             float4 _Color;
             half4 _RendererColor;
+            half _AOIntensity, _PaletteSaturation, _MinimumLight;
+            half4 _PaletteTint;
             #include "DeepTerrainBlend.hlsl"
 
             #if USE_SHAPE_LIGHT_TYPE_0
@@ -118,14 +125,17 @@ Shader "DeepPressure/Sprite-Lit-AO"
             {
                 half4 main = i.color * SAMPLE_TEXTURE2D(_MainTex, sampler_MainTex, i.uv);
                 main.rgb = DeepTerrainColor(main.rgb,i.positionWS);
+                main.rgb = lerp(dot(main.rgb,half3(.2126,.7152,.0722)).xxx,main.rgb,_PaletteSaturation) * _PaletteTint.rgb;
                 const half4 mask = SAMPLE_TEXTURE2D(_MaskTex, sampler_MaskTex, i.uv);
                 SurfaceData2D surfaceData;
                 InputData2D inputData;
 
-                InitializeSurfaceData(main.rgb * lerp(0.55, 1.0, SAMPLE_TEXTURE2D(_AOMap, sampler_AOMap, i.uv).r), main.a, mask, surfaceData);
+                InitializeSurfaceData(main.rgb * lerp(1.0-_AOIntensity, 1.0, SAMPLE_TEXTURE2D(_AOMap, sampler_AOMap, i.uv).r), main.a, mask, surfaceData);
                 InitializeInputData(i.uv, i.lightingUV, inputData);
 
-                return CombinedShapeLightShared(surfaceData, inputData);
+                half4 lit = CombinedShapeLightShared(surfaceData, inputData);
+                lit.rgb = max(lit.rgb,surfaceData.albedo*_MinimumLight);
+                return lit;
             }
             ENDHLSL
         }
@@ -241,6 +251,8 @@ Shader "DeepPressure/Sprite-Lit-AO"
             float4 _MainTex_ST;
             float4 _Color;
             half4 _RendererColor;
+            half _AOIntensity, _PaletteSaturation;
+            half4 _PaletteTint;
             #include "DeepTerrainBlend.hlsl"
 
             Varyings UnlitVertex(Attributes attributes)
@@ -266,6 +278,8 @@ Shader "DeepPressure/Sprite-Lit-AO"
             {
                 float4 mainTex = i.color * SAMPLE_TEXTURE2D(_MainTex, sampler_MainTex, i.uv);
                 mainTex.rgb = DeepTerrainColor(mainTex.rgb,i.positionWS);
+                mainTex.rgb = lerp(dot(mainTex.rgb,half3(.2126,.7152,.0722)).xxx,mainTex.rgb,_PaletteSaturation) * _PaletteTint.rgb;
+                mainTex.rgb *= lerp(1.0-_AOIntensity,1.0,SAMPLE_TEXTURE2D(_AOMap,sampler_AOMap,i.uv).r);
 
                 #if defined(DEBUG_DISPLAY)
                 SurfaceData2D surfaceData;

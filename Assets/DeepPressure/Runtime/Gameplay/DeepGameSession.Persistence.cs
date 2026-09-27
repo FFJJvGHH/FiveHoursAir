@@ -106,7 +106,7 @@ namespace DeepPressure
                 hasCamera = camera != null,cameraPosition = camera == null ? Vector3.zero : camera.transform.position,cameraSize = camera == null ? 12 : camera.orthographicSize,
                 overlay = hud == null ? 0 : (int)hud.overlay,
                 systemsRevision=3,nextPrintingTime=nextPrintingTime,printingGeneration=printingGeneration,wiredPower=useWiredPower,lifeSupport=lifeSupportEnabled,wires=completedWireCells.ToArray(),
-                stableAirSeconds=StableAirSeconds,production=productionTargets.ConvertAll(p=>new DeepProductionTarget{recipeId=p.recipeId,targetAmount=p.targetAmount,enabled=p.enabled}).ToArray(),
+                stableAirSeconds=StableAirSeconds,production=productionTargets.ConvertAll(p=>new DeepProductionTarget{recipeId=p.recipeId,stationId=p.stationId,targetAmount=p.targetAmount,enabled=p.enabled}).ToArray(),
                 nextProductionCheck=nextProductionCheck,hazardsEnabled=hazardsEnabled,hazardEventCount=HazardEventCount,lastHazardMessage=LastHazardMessage,
                 hazards=HazardEvents.ConvertAll(h=>new DeepSavedHazard{kind=h.kind,cell=h.cell,direction=h.direction,strength=h.strength,time=h.time,message=h.message}).ToArray(),
                 atmosphereDiffusion=savedAtmosphere==null?1.25f:savedAtmosphere.diffusionPerSecond,
@@ -151,6 +151,7 @@ namespace DeepPressure
             {
                 if (worker == null) continue;
                 workerData.Add(new DeepSavedWorker { id = ObjectId(worker,"w"),name = worker.displayName,position = worker.transform.position,path = worker.CapturePath(),currentOrderId = worker.currentOrder == null ? -1 : worker.currentOrder.id,
+                    traversalOrigin=worker.TraversalOrigin,remainingMotionWaypoints=worker.RemainingMotionWaypoints,
                     moveSpeed = worker.moveCellsPerSecond,workSpeed = worker.workSpeed,digPreference = worker.digPreference,buildPreference = worker.buildPreference,researchPreference = worker.researchPreference,
                     craftPreference = worker.craftPreference,pipePreference = worker.pipePreference,automationPaused = worker.automationPaused,airReserveSeconds=worker.airReserveSeconds,
                     health=worker.health,deathCause=worker.deathCause,diedAtSeconds=worker.diedAtSeconds,nextWorkSearchTime=worker.nextWorkSearchTime,environmentUnsafe=worker.environmentUnsafe,environmentEfficiency=worker.environmentEfficiency });
@@ -275,6 +276,8 @@ namespace DeepPressure
                 worker.health=data.systemsRevision>=3?entry.health:100;worker.deathCause=data.systemsRevision>=3?entry.deathCause:null;worker.diedAtSeconds=data.systemsRevision>=3?entry.diedAtSeconds:-1;
                 worker.currentOrder = null; worker.displayName = entry.name; worker.transform.position = entry.position;
                 worker.moveCellsPerSecond = entry.moveSpeed; worker.workSpeed = entry.workSpeed; worker.RestorePath(entry.path);
+                worker.RestoreTraversal(entry.traversalOrigin,entry.remainingMotionWaypoints);
+                worker.breathingUnsafe=false;worker.environmentCondition=null;
                 worker.digPreference = entry.digPreference; worker.buildPreference = entry.buildPreference; worker.researchPreference = entry.researchPreference;
                 worker.craftPreference = entry.craftPreference; worker.pipePreference = entry.pipePreference; worker.automationPaused = entry.automationPaused;
                 worker.airReserveSeconds=data.systemsRevision>0?entry.airReserveSeconds:90;
@@ -360,7 +363,7 @@ namespace DeepPressure
             {
                 useWiredPower=data.wiredPower;lifeSupportEnabled=data.lifeSupport;completedWireCells=new List<Vector2Int>(data.wires??Array.Empty<Vector2Int>());
                 StableAirSeconds=data.stableAirSeconds;productionTargets=new List<DeepProductionTarget>();
-                foreach(var p in data.production??Array.Empty<DeepProductionTarget>())productionTargets.Add(new DeepProductionTarget{recipeId=p.recipeId,targetAmount=p.targetAmount,enabled=p.enabled});
+                foreach(var p in data.production??Array.Empty<DeepProductionTarget>())productionTargets.Add(new DeepProductionTarget{recipeId=p.recipeId,stationId=p.stationId,targetAmount=p.targetAmount,enabled=p.enabled});
             }
             else
             {
@@ -378,8 +381,7 @@ namespace DeepPressure
                 foreach(var entry in data.hazards)HazardEvents.Add(new DeepHazardEvent{kind=entry.kind,cell=entry.cell,direction=entry.direction,strength=entry.strength,time=entry.time,message=entry.message});
             }
             else hazardsEnabled=true;
-            gasFacilityStatus.Clear();OxygenSupplyRate=OxygenDemandRate=CarbonRemovalRate=0;UnsafeWorkerCount=0;
-            foreach(var worker in Workers)if(worker!=null&&worker.IsAlive&&worker.environmentUnsafe)UnsafeWorkerCount++;
+            gasFacilityStatus.Clear();OxygenSupplyRate=OxygenDemandRate=CarbonRemovalRate=0;
             // Recreate the open-cell mask from the restored terrain before applying exact cell contents.
             // Also reset an existing field for legacy room-only saves so UI cannot read stale cell gas.
             var restoredAtmosphere=world.GetComponent<DeepAtmosphereField>();
@@ -387,10 +389,11 @@ namespace DeepPressure
             if(restoredAtmosphere!=null)
             {
                 restoredAtmosphere.world=world;restoredAtmosphere.ResetFromRooms();atmosphere=restoredAtmosphere;
-                if(lifeSupportEnabled&&data.atmosphereCells!=null)restoredAtmosphere.RestoreCells(data.atmosphereCells,data.atmosphereTemperatures);
                 restoredAtmosphere.diffusionPerSecond=data.systemsRevision>=2?data.atmosphereDiffusion:1.25f;
                 restoredAtmosphere.thermalConductionPerSecond=data.systemsRevision>=2?data.atmosphereConduction:.08f;
+                if(lifeSupportEnabled&&data.atmosphereCells!=null)restoredAtmosphere.RestoreCells(data.atmosphereCells,data.atmosphereTemperatures);
             }
+            RefreshAirReadings();
             if (exploration != null) exploration.RestoreDiscovery(data.exploration);
             RebuildOccupancy(); RefreshStorageCapacity(); UpdatePower(0);
             if (network != null)

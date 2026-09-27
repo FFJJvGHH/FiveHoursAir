@@ -11,8 +11,8 @@ namespace DeepPressure
         public static string RunAll()
         {
             PendingWorkRoundTrip(); CompletedWorldAndNewGame(); DiscoveryRoundTrip(); CorruptionAndAtomicRecovery(); RejectInvalidBeforeMutation();
-            UpgradedSystemsRoundTrip(); PendingInfrastructureWorkRoundTrip(); LegacyAndInvalidSystems(); ScriptReloadRecovery();
-            return "Deep Pressure persistence: 9 groups passed. In-flight jobs/material reservations; buildings/terrain/pipes/new game; fog/samples; checksums/backup recovery; preflight rejection; six-species cell gases/heat/wires/batteries/prepaid fuel/production/hazard clocks; pending wire/sample/survey work; legacy migration and invalid upgraded saves; editor-reload cache and initial-baseline recovery.";
+            UpgradedSystemsRoundTrip(); PendingInfrastructureWorkRoundTrip(); LegacyAndInvalidSystems(); ScriptReloadRecovery(); GapTraversalRoundTrip(); PausedAirReadingsRoundTrip();
+            return "Deep Pressure persistence: 11 groups passed. In-flight work and gas/system inventories; corruption/preflight safety; legacy/reload recovery; airborne traversal; paused hypoxia/toxicity/clean-air status restoration without changing gas, health, reserve or time.";
         }
         /// <summary>Run explicitly in the authored Play session, after starting its colony.</summary>
         public static string RunActiveSceneRoundTrip()
@@ -76,7 +76,7 @@ namespace DeepPressure
                 f.a.gas = new GasMixture { oxygen = 17,nitrogen = 11 }; f.b.gas = new GasMixture { waterVapour = 5 };
                 var link = DeepPlayerPipeFactory.Create(f.session,f.a,f.b,GasOutputPort.Mixed); link.valve = .35f; link.isOpen = false;
                 f.network.nodes = new[] { f.a,f.b }; f.network.links = new[] { link }; f.network.RestoreSavedClock(12.4,124,.04);
-                f.session.paused = true; f.session.speed = 2;
+                f.session.paused = true; f.session.speed = 6;
                 var saved = Clone(f.session.CaptureSaveState());
                 Assert(f.session.NewGame(out reason),reason);
                 Assert(f.session.BuildingAt(new Vector2Int(8,1)) == null && f.world.GetTerrain(6,0) == TerrainKind.Basalt,"New game restores the initial terrain and removes runtime construction.");
@@ -85,7 +85,7 @@ namespace DeepPressure
                 Assert(f.session.BuildingAt(new Vector2Int(8,1)) != null && f.world.GetTerrain(6,0) == TerrainKind.Empty,"Loading reconstructs missing buildings and edited terrain.");
                 Assert(Math.Abs(f.world.Rooms[0].gas.oxygen-43) < 1e-9 && Math.Abs(f.a.gas.oxygen-17) < 1e-9,"Room and tank inventories survive without reset or refill.");
                 Assert(f.network.links.Length == 1 && !f.network.links[0].isOpen && Mathf.Abs(f.network.links[0].valve-.35f) < .0001f,"Pipes and valve settings are reconstructed.");
-                Assert(Math.Abs(f.network.ElapsedSeconds-12.4) < 1e-9 && f.network.StepCount == 124 && f.session.paused && f.session.speed == 2,"Simulation clocks and pause/speed settings restore.");
+                Assert(Math.Abs(f.network.ElapsedSeconds-12.4) < 1e-9 && f.network.StepCount == 124 && f.session.paused && f.session.speed == 6,"Simulation clocks and pause/6x speed settings restore.");
                 Assert(f.network.VerifyConservation(out reason),reason);
                 f.session.paused = false; f.network.Step(.1f); Assert(f.network.VerifyConservation(out reason),reason);
                 Assert(f.session.inventory.GetAmount(f.ore) == 26,"Completed construction remains paid after load.");
@@ -287,6 +287,23 @@ namespace DeepPressure
                 Assert(f.session.ValidateSaveState(f.session.CaptureSaveState(),out reason),"Capture after world cache loss: "+reason);
             }
         }
+        static void GapTraversalRoundTrip()
+        {
+            using(var f=new Fixture())
+            {
+                f.world.SetTerrain(6,0,TerrainKind.Empty);f.world.RebuildRoomsPreservingGas();
+                f.worker.TeleportToCell(new Vector2Int(5,1));
+                Assert(f.session.RequestMove(f.worker,new Vector2Int(7,1),out string reason),reason);
+                for(int i=0;i<40&&f.worker.Cell.x!=6;i++)f.session.Tick(.05f);
+                Assert(f.worker.Cell.x==6&&f.worker.RemainingMotionWaypoints>0&&!f.session.IsStandable(f.worker.Cell),"Fixture saves while actually suspended over a gap.");
+                var save=Clone(f.session.CaptureSaveState());Vector3 position=f.worker.transform.position;
+                f.session.CancelOrder(f.worker.currentOrder);f.worker.TeleportToCell(new Vector2Int(12,1));
+                Assert(f.session.TryRestoreSaveState(save,out reason),reason);
+                Assert(Vector3.Distance(f.worker.transform.position,position)<.0001f&&f.worker.RemainingMotionWaypoints>0,"Loading preserves the airborne position and traversal phase.");
+                f.Run(3);
+                Assert(f.worker.Cell==new Vector2Int(7,1)&&f.worker.currentOrder==null,"A restored jump finishes safely instead of falling into the gap.");
+            }
+        }
         static void SetPrivate(object target,string name,object value)
         {var field=target.GetType().GetField(name,BindingFlags.Instance|BindingFlags.NonPublic);Assert(field!=null,"Reload fixture field exists: "+name);field.SetValue(target,value);}
         static GasMixture SumRooms(DeepPressureWorld world) { GasMixture total=default;foreach(var room in world.Rooms)total+=room.gas;return total; }
@@ -294,6 +311,43 @@ namespace DeepPressure
         {for(int species=0;species<GasMixture.SpeciesCount;species++)Assert(Math.Abs(actual[species]-expected[species])<Math.Max(1e-7,Math.Abs(expected[species])*1e-9),message);}
         static DeepSaveData Clone(DeepSaveData original)
         { Assert(DeepSaveStore.Decode(DeepSaveStore.Encode(original),out var copy,out string reason),reason); return copy; }
+        static void PausedAirReadingsRoundTrip()
+        {
+            using(var f=new Fixture())
+            {
+                f.session.lifeSupportEnabled=true;f.session.hazardsEnabled=false;f.session.paused=true;
+                f.worker.health=73;f.worker.airReserveSeconds=0;f.worker.automationPaused=true;
+                var field=f.session.Atmosphere;
+                SetPausedAir(f,new Vector4(.21f,.73f,.06f,0));
+                Assert(!f.worker.breathingUnsafe&&f.worker.environmentUnsafe&&f.worker.Status.Contains("二氧化碳")&&!f.worker.Status.Contains("窒息"),"A paused oxygen-rich toxic atmosphere displays toxicity without suffocation.");
+                var toxic=Clone(f.session.CaptureSaveState());var toxicGas=field.TotalInventory();
+                SetPausedAir(f,new Vector4(.05f,.95f,0,0));
+                Assert(f.worker.breathingUnsafe&&f.worker.Status.Contains("窒息"),"The pre-load scene has distinct low-oxygen derived state.");
+                f.worker.health=12;f.worker.airReserveSeconds=30;
+                Assert(f.session.TryRestoreSaveState(toxic,out string reason),reason);
+                Assert(f.session.paused&&!f.worker.breathingUnsafe&&f.worker.environmentUnsafe&&f.session.HypoxicWorkerCount==0&&f.session.UnsafeWorkerCount==1,"Paused restore immediately replaces stale hypoxia flags/counts with the saved toxic atmosphere.");
+                Assert(f.worker.Status.Contains("二氧化碳")&&!f.worker.Status.Contains("窒息"),"Paused worker status uses the restored cause without waiting for a simulation tick.");
+                Assert(f.worker.health==73&&f.worker.airReserveSeconds==0&&f.session.SimulationTime==toxic.simulationTime,"Refreshing paused toxicity readings neither damages health nor refills reserve nor advances time.");
+                AssertGas(field.TotalInventory(),toxicGas,"Refreshing paused toxicity readings does not consume or transform gas.");
+                SetPausedAir(f,new Vector4(.05f,.95f,0,0));
+                var hypoxic=Clone(f.session.CaptureSaveState());var hypoxicGas=field.TotalInventory();
+                SetPausedAir(f,new Vector4(.21f,.79f,0,0));
+                var clean=Clone(f.session.CaptureSaveState());
+                Assert(f.session.TryRestoreSaveState(hypoxic,out reason),reason);
+                Assert(f.worker.breathingUnsafe&&f.worker.Status.Contains("窒息")&&f.session.HypoxicWorkerCount==1,"Paused hypoxic save immediately restores suffocation status from the actual O2 field.");
+                Assert(f.worker.health==73&&f.worker.airReserveSeconds==0,"The read-only refresh cannot apply suffocation damage.");
+                AssertGas(field.TotalInventory(),hypoxicGas,"Hypoxia status refresh leaves finite oxygen and CO2 unchanged.");
+                Assert(f.session.TryRestoreSaveState(clean,out reason),reason);
+                Assert(!f.worker.breathingUnsafe&&!f.worker.environmentUnsafe&&f.session.UnsafeWorkerCount==0&&f.session.HypoxicWorkerCount==0&&!f.worker.Status.Contains("窒息"),"Paused clean-air load clears all stale danger causes and counters.");
+                Assert(f.worker.health==73&&f.worker.airReserveSeconds==0,"Clean-air status refresh does not grant a free reserve refill.");
+            }
+        }
+        static void SetPausedAir(Fixture f,Vector4 fractions)
+        {
+            var field=f.session.Atmosphere;var cell=f.session.BreathingCell(f.worker.Cell);
+            field.Take(cell,double.MaxValue);field.Add(cell,GasMixture.FromPressure(100,field.CellVolumeM3,field.TemperatureC(cell),fractions));
+            f.session.RefreshAirReadings();
+        }
         sealed class Fixture : IDisposable
         {
             public readonly GameObject root;

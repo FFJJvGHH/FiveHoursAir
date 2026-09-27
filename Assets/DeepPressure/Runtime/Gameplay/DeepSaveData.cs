@@ -66,6 +66,8 @@ namespace DeepPressure
         public string id,name;
         public Vector3 position;
         public Vector2Int[] path;
+        public Vector2Int traversalOrigin;
+        public int remainingMotionWaypoints;
         public int currentOrderId = -1;
         public float moveSpeed,workSpeed;
         public int digPreference,buildPreference,researchPreference,craftPreference,pipePreference;

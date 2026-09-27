@@ -248,6 +248,8 @@ MonoBehaviour:
   - {fileID: 5498230516991360659}
   - {fileID: 6060854916218354548}
   - {fileID: 3068360027164179059}
+  screenScans: []
+  oxygenBubbles: []
   housingRestPosition: {x: 1, y: 0.28578365, z: 0}
   fanRestPosition: {x: 0, y: 0, z: 0}
   needleRestPosition: {x: 0, y: 0, z: 0}

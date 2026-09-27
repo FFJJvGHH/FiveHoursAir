@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using UnityEngine;
 
 namespace DeepPressure
@@ -10,8 +11,10 @@ namespace DeepPressure
     public sealed class DeepAtmosphereField : MonoBehaviour
     {
         public DeepPressureWorld world;
-        [Range(.05f,3)] public float diffusionPerSecond = 1.25f;
+        public const float DefaultDiffusionPerSecond = 2.4f;
+        [Range(.05f,3)] public float diffusionPerSecond = DefaultDiffusionPerSecond;
         [Range(0,.5f)] public float thermalConductionPerSecond = .08f;
+        [HideInInspector] public float initialCarbonDioxideFraction=.0004f;
         GasMixture[] cells,deltas;
         double[] temperatures,energyDelta;
         bool[] open;
@@ -33,7 +36,16 @@ namespace DeepPressure
                 open[i] = world.GetTerrain(x,y) == TerrainKind.Empty;
                 var room = open[i] ? world.RoomAt(cell) : null;
                 temperatures[i] = room == null ? world.defaultTemperatureC : room.temperatureC;
-                if (room != null && room.cellCount > 0) cells[i] = room.gas.Scaled(1d/room.cellCount);
+                if (room != null && room.cellCount > 0)
+                {
+                    cells[i] = room.gas.Scaled(1d/room.cellCount);
+                    // Older authored starter air omitted trace CO2. Replace an equal
+                    // amount of N2 once at initialization; this never adds gas or runs
+                    // during restore, diffusion or excavation.
+                    double total=cells[i].Total;
+                    if(total>0&&cells[i].carbonDioxide<=1e-12&&cells[i].nitrogen/total>.7&&cells[i].oxygen/total>.18)
+                    {double trace=total*Mathf.Clamp(initialCarbonDioxideFraction,0,.02f);cells[i].nitrogen-=trace;cells[i].carbonDioxide+=trace;}
+                }
             }
             SyncRooms();
         }
@@ -72,6 +84,81 @@ namespace DeepPressure
             double source = double.IsNaN(sourceTemperatureC) || double.IsInfinity(sourceTemperatureC) ? temperatures[i] : Math.Max(-272.15,Math.Min(2000,sourceTemperatureC));
             temperatures[i] = (temperatures[i]*previous+source*packet.Total)/(previous+packet.Total);
             cells[i] += packet;
+        }
+
+        /// <summary>A fan disperses its finite packet through nearby connected air. Capacity
+        /// is computed before injection, including both total and oxygen partial pressure.
+        /// Solid walls are never crossed, and the returned packet is the only accepted gas.</summary>
+        public GasMixture AddDistributed(Vector2Int source,GasMixture packet,double maximumPressureKPa,
+            double targetOxygenKPa = double.PositiveInfinity,double sourceTemperatureC = double.NaN,int radius = 2)
+        {
+            if (!Valid(source) || !packet.IsFiniteAndNonnegative || packet.Total <= 0) return default;
+            var candidates = new List<Vector2Int>(); var capacities = new List<double>();
+            double capacity = 0,oxygenFraction = packet.oxygen/packet.Total;
+            foreach (var cell in ConnectedArea(source,radius))
+            {
+                var gas = Sample(cell); double temperature = TemperatureC(cell);
+                double available = Math.Max(0,GasMixture.FromPressure(maximumPressureKPa,CellVolumeM3,temperature,Vector4.one).Total-gas.Total);
+                if (oxygenFraction > 1e-12 && !double.IsPositiveInfinity(targetOxygenKPa))
+                {
+                    double desired = GasMixture.FromPressure(targetOxygenKPa,CellVolumeM3,temperature,new Vector4(1,0,0,0)).oxygen;
+                    available = Math.Min(available,Math.Max(0,desired-gas.oxygen)/oxygenFraction);
+                }
+                if (available > 0) { candidates.Add(cell); capacities.Add(available); capacity += available; }
+            }
+            if (capacity <= 1e-12) return default;
+            var accepted = packet.Scaled(Math.Min(1,capacity/packet.Total));
+            for (int i = 0; i < candidates.Count; i++) Add(candidates[i],accepted.Scaled(capacities[i]/capacity),sourceTemperatureC);
+            return accepted;
+        }
+
+        /// <summary>Photosynthesis removes one CO2 molecule for each O2 molecule
+        /// released. Carbon is retained in the finite culture; no gas appears when
+        /// there is no available CO2. The exchange never changes total gas moles.</summary>
+        public double Photosynthesize(Vector2Int source,double maximumMol,double targetOxygenKPa = 23,int radius = 3)
+        {
+            if (!Valid(source) || maximumMol <= 0 || double.IsNaN(maximumMol)) return 0;
+            var area = ConnectedArea(source,radius);var capacities = new double[area.Count];double available=0;
+            for(int n=0;n<area.Count;n++)
+            {
+                int i=Index(area[n]);
+                double desired=GasMixture.FromPressure(targetOxygenKPa,CellVolumeM3,temperatures[i],new Vector4(1,0,0,0)).oxygen;
+                capacities[n]=Math.Min(cells[i].carbonDioxide,Math.Max(0,desired-cells[i].oxygen));available+=capacities[n];
+            }
+            if(available<=1e-12)return 0;
+            double converted=Math.Min(available,maximumMol);
+            for(int n=0;n<area.Count;n++)
+            {
+                int i=Index(area[n]);double amount=converted*capacities[n]/available;
+                cells[i].carbonDioxide-=amount;cells[i].oxygen+=amount;
+            }
+            return converted;
+        }
+
+        List<Vector2Int> ConnectedArea(Vector2Int source,int radius)
+        {
+            var result=new List<Vector2Int>();if(!Valid(source))return result;
+            var queue=new Queue<Vector2Int>();var visited=new HashSet<Vector2Int>();queue.Enqueue(source);visited.Add(source);
+            Vector2Int[] directions={Vector2Int.up,Vector2Int.left,Vector2Int.right,Vector2Int.down};
+            while(queue.Count>0)
+            {
+                var cell=queue.Dequeue();result.Add(cell);
+                foreach(var direction in directions)
+                {
+                    var next=cell+direction;
+                    if(Math.Abs(next.x-source.x)+Math.Abs(next.y-source.y)>Math.Max(0,radius)||!Valid(next)||!visited.Add(next))continue;
+                    queue.Enqueue(next);
+                }
+            }
+            return result;
+        }
+
+        void UpgradeLegacyDiffusion()
+        {
+            // The former default made a throttled outlet look productive while a worker
+            // a few tiles away received too little fresh air. Preserve custom pacing.
+            var session=world==null?null:world.GetComponent<DeepGameSession>();
+            if (Mathf.Approximately(diffusionPerSecond,1.25f)) diffusionPerSecond = session==null?DefaultDiffusionPerSecond:session.SimulationTuning.diffusionPerSecond;
         }
 
         public void Tick(float seconds)
@@ -177,6 +264,7 @@ namespace DeepPressure
             }
             cells = (GasMixture[])saved.Clone();
             if (savedTemperatures != null) temperatures = (double[])savedTemperatures.Clone();
+            UpgradeLegacyDiffusion();
             SyncRooms();
         }
     }

@@ -45,7 +45,7 @@ namespace DeepPressure.Editor
             var printingPod=Building(buildings,"printing_pod","人员打印舱","殖民",DeepBuildingRole.Storage,new Vector2Int(3,3),Art("Industrial/tank_Color.png"),null,30,true,false,Array.Empty<DeepItemAmount>(),
                 "定期提供人员候选。接纳新成员会持续增加氧气消耗；舱内保留 100 单位初始物资空间。",0,0,100);
             var diffuser=Building(buildings,"oxygen_diffuser","藻类制氧器","生存",DeepBuildingRole.Structure,new Vector2Int(2,2),Art("Props/planter_Color.png"),null,7,true,false,new[]{Cost(ore,8)},
-                "消耗藻类向附近释放氧气。每份藻类提供 30 mol 氧气，最高 1.5 mol/s；气压或氧含量充足时暂停。",0,0);
+                "藻类吸收附近 CO₂，通过光合作用等量释放 O₂。默认每份培养基最多回收 30 mol CO₂、最高 1.5 mol/s；缺 CO₂ 或氧气充足时待机。速率可在生存模拟参数中调整。",0,0);
 
             var lamp=Building(buildings,"lamp","工作灯","照明",DeepBuildingRole.Light,new Vector2Int(1,1),Art("Props/vent_Color.png"),null,3,false,false,new[]{Cost(alloy,1),Cost(electronics,1)},
                 "照亮工作区域。需要 1 单位电力，可以单独关闭。",0,1);
@@ -295,10 +295,6 @@ namespace DeepPressure.Editor
                         if(definition.role==DeepBuildingRole.Fabricator)
                         {
                             var controls=Sprite(visual.transform,"Control console",Art("Props/console_Color.png"),Lit());Fit(controls,new Vector2(width*.76f,height*.46f),new Vector2(width*.36f,height*.58f));controls.sortingOrder=11;
-                        }
-                        if(definition.role==DeepBuildingRole.Storage)
-                        {
-                            var second=Sprite(visual.transform,"Stacked bin",Art("Props/crate_Color.png"),Lit());Fit(second,new Vector2(width*.72f,height*.58f),new Vector2(width*.42f,height*.68f));second.sortingOrder=11;
                         }
                         break;
                 }

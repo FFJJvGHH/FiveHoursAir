@@ -1,6 +1,7 @@
 #ifndef DEEP_TERRAIN_BLEND_INCLUDED
 #define DEEP_TERRAIN_BLEND_INCLUDED
 TEXTURE2D(_TerrainPaletteTex); SAMPLER(sampler_TerrainPaletteTex);
+TEXTURE2D(_TerrainSourcePaletteTex); SAMPLER(sampler_TerrainSourcePaletteTex);
 float _TerrainBlendEnabled;
 float4 _TerrainMapSize;
 float4x4 _TerrainWorldToLocal;
@@ -9,7 +10,7 @@ half3 DeepTerrainColor(half3 color, float3 positionWS)
 {
     if (_TerrainBlendEnabled < .5) return color;
     float2 p = mul(_TerrainWorldToLocal,float4(positionWS,1)).xy / max(_TerrainMapSize.z,.001);
-    half4 original = SAMPLE_TEXTURE2D(_TerrainPaletteTex,sampler_TerrainPaletteTex,(floor(p)+.5)/_TerrainMapSize.xy);
+    half4 original = SAMPLE_TEXTURE2D(_TerrainSourcePaletteTex,sampler_TerrainSourcePaletteTex,(floor(p)+.5)/_TerrainMapSize.xy);
     if (original.a < .5) return color; // Manufactured metal and air keep their authored boundaries.
     float2 warp = float2(sin(p.y*2.71+p.x*.37)+.42*sin(p.y*7.83+p.x*.91),
         sin(p.x*2.31+p.y*.43)+.42*sin(p.x*8.37+p.y*.79)) * .17;

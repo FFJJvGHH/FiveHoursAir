@@ -8,7 +8,7 @@ namespace DeepPressure
         public static string RunAll()
         {
             SixSpeciesPipeTransport(); ConditionalReaction(); OperationalIgnition(); PressureBreach();
-            return "Deep Pressure hazards: 4 groups passed. Six-species finite pipe conservation and external ledger; bounded conditional reaction conserves atoms; an actual wired energized machine ignites the authoritative cell gas and shutdown stops it; high-pressure breach warning, worker displacement and emergency-air cost.";
+            return "Deep Pressure hazards: 4 groups passed. Six-species finite pipe conservation and external ledger; bounded conditional reaction conserves atoms; an actual wired energized machine ignites the authoritative cell gas and shutdown stops it; unannounced high-pressure breach kills an adjacent unprotected worker without deleting gas.";
         }
         static void SixSpeciesPipeTransport()
         {
@@ -59,10 +59,10 @@ namespace DeepPressure
                 Region(root,new RectInt(0,0,4,5),220,"high"); Region(root,new RectInt(5,0,4,5),60,"low"); world.RebuildRooms();
                 var session = root.AddComponent<DeepGameSession>(); session.world = world; session.lifeSupportEnabled = true; session.InitializeSession();
                 var workerObject = new GameObject("At breach"); workerObject.transform.SetParent(root.transform); var worker = workerObject.AddComponent<DeepWorker>(); worker.session=session; worker.TeleportToCell(new Vector2Int(5,1)); session.Workers.Add(worker);
-                var cell = new Vector2Int(4,1); Assert(session.ExcavationRisk(cell).Contains("压差"),"High differential is visible before excavation.");
+                var cell = new Vector2Int(4,1); Assert(string.IsNullOrEmpty(session.ExcavationRisk(cell)),"Hidden high pressure gives no pre-excavation warning.");
                 GasMixture before = default; foreach(var room in world.Rooms) before += room.gas;
                 session.PrepareExcavationHazard(cell); world.SetTerrain(cell.x,cell.y,TerrainKind.Empty); world.RebuildRoomsPreservingGas(); session.ResolveExcavationHazard(cell);
-                Assert(session.HazardEventCount == 1 && worker.Cell == new Vector2Int(6,1) && worker.airReserveSeconds < 90,"Breach causes measurable displacement and emergency-air loss.");
+                Assert(session.HazardEventCount == 1 && !worker.IsAlive && worker.deathCause=="气压冲击","An unprotected worker beside a 160 kPa breach dies from the pressure shock.");
                 GasMixture after = default; foreach(var room in world.Rooms) after += room.gas;
                 for(int i=0;i<GasMixture.SpeciesCount;i++) Assert(Math.Abs(before[i]-after[i])<1e-7,"Pressure shock never deletes gas.");
             }

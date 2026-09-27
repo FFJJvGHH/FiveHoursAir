@@ -6,6 +6,8 @@ using System.Text;
 using UnityEditor;
 using UnityEditor.SceneManagement;
 using UnityEngine;
+using UnityEngine.Rendering;
+using UnityEngine.Rendering.Universal;
 
 namespace DeepPressure.Editor
 {
@@ -27,7 +29,20 @@ namespace DeepPressure.Editor
         {
             if(EditorApplication.isPlayingOrWillChangePlaymode)throw new InvalidOperationException("Stop Play before presentation migration.");
             alphaBounds.Clear();AssetDatabase.Refresh(ImportAssetOptions.ForceSynchronousImport);
-            BindDetailTextures();
+            BindDetailTextures();DeepPressureArtImporter.BindSecondaryTextures();
+            var sharedMaterial=AssetDatabase.LoadAssetAtPath<Material>(Root+"/Materials/IndustrialLit.mat");
+            if(sharedMaterial!=null)
+            {
+                sharedMaterial.SetFloat("_AOIntensity",.28f);sharedMaterial.SetFloat("_PaletteSaturation",.82f);
+                sharedMaterial.SetFloat("_MinimumLight",.12f);sharedMaterial.SetColor("_PaletteTint",DeepArtPalette.MachineTint);EditorUtility.SetDirty(sharedMaterial);
+                string workerMaterialPath=Root+"/Materials/WorkerLit.mat";
+                var workerMaterial=AssetDatabase.LoadAssetAtPath<Material>(workerMaterialPath);
+                if(workerMaterial==null){workerMaterial=new Material(sharedMaterial){name="WorkerLit"};AssetDatabase.CreateAsset(workerMaterial,workerMaterialPath);}
+                workerMaterial.SetFloat("_AOIntensity",.20f);workerMaterial.SetFloat("_PaletteSaturation",.91f);
+                workerMaterial.SetFloat("_MinimumLight",.38f);workerMaterial.SetColor("_PaletteTint",new Color(1,.985f,.94f));EditorUtility.SetDirty(workerMaterial);
+            }
+            var terrainMaterial=AssetDatabase.LoadAssetAtPath<Material>(Root+"/Art/TerrainV2/TerrainHD2D.mat");
+            if(terrainMaterial!=null){terrainMaterial.SetFloat("_AOIntensity",.32f);terrainMaterial.SetFloat("_PaletteSaturation",.94f);EditorUtility.SetDirty(terrainMaterial);}
             if(catalog!=null)foreach(var definition in catalog.buildings)GroundPrefab(definition);
             string workerPath=DeepCatalogBuilder.PrefabRoot+"/Worker.prefab";
             if(AssetDatabase.LoadAssetAtPath<GameObject>(workerPath)!=null)
@@ -38,6 +53,7 @@ namespace DeepPressure.Editor
             }
             foreach(var world in UnityEngine.Object.FindObjectsOfType<DeepPressureWorld>())
             {
+                HarmonizeWorldLighting(world);
                 foreach(var building in world.GetComponentsInChildren<DeepBuildingInstance>(true))GroundObject(building);
                 foreach(var worker in world.GetComponentsInChildren<DeepWorkerPresentation>(true))UpgradeWorker(worker);
                 foreach(var node in world.GetComponentsInChildren<GasNode>(true))
@@ -46,6 +62,27 @@ namespace DeepPressure.Editor
                 EditorSceneManager.MarkSceneDirty(world.gameObject.scene);
             }
             AssetDatabase.SaveAssets();
+        }
+
+        static void HarmonizeWorldLighting(DeepPressureWorld world)
+        {
+            // Neutral fill separates foreground actors from a quieter blue-grey cavity.
+            if(world.background!=null){world.background.color=new Color(.32f,.38f,.39f);EditorUtility.SetDirty(world.background);}
+            foreach(var light in world.GetComponentsInChildren<Light2D>(true))
+            {
+                if(light.lightType==Light2D.LightType.Global){light.color=DeepArtPalette.AmbientLight;light.intensity=.56f;}
+                else if(light.GetComponentInParent<DeepBuildingInstance>()==null){light.color=DeepArtPalette.WorkLight;light.intensity=Mathf.Min(1,light.intensity);}
+                EditorUtility.SetDirty(light);
+            }
+            foreach(var volume in world.GetComponentsInChildren<Volume>(true))
+            {
+                var profile=volume.sharedProfile;if(profile==null)continue;
+                if(profile.TryGet<ColorAdjustments>(out var grade)){grade.postExposure.Override(.10f);grade.contrast.Override(3);grade.saturation.Override(-3);EditorUtility.SetDirty(grade);}
+                if(profile.TryGet<Bloom>(out var bloom)){bloom.intensity.Override(.10f);bloom.threshold.Override(1.1f);EditorUtility.SetDirty(bloom);}
+                if(profile.TryGet<Vignette>(out var vignette)){vignette.intensity.Override(.12f);EditorUtility.SetDirty(vignette);}
+                EditorUtility.SetDirty(profile);
+            }
+            var palette=world.GetComponent<DeepTerrainMaterialField>();if(palette!=null){palette.RefreshField();EditorUtility.SetDirty(palette);}
         }
 
         public static void GroundPrefab(DeepBuildingDefinition definition)
@@ -62,13 +99,34 @@ namespace DeepPressure.Editor
             if(building==null||building.definition==null)return;
             building.RefreshOwnedComponents();var definition=building.definition;
             Transform visual=building.visualRoot;
+            foreach(var light in building.lights)
+            {
+                light.color=DeepArtPalette.WorkLight;light.intensity=definition.id=="printing_pod"?.30f:.90f;
+                if(definition.id=="printing_pod")light.pointLightOuterRadius=5;
+                EditorUtility.SetDirty(light);
+            }
+            if(definition.id=="printing_pod"&&visual!=null)
+            {
+                var chamber=visual.Find("Bioprint chamber")?.GetComponent<SpriteRenderer>();
+                if(chamber!=null){chamber.color=new Color(.57f,.73f,.65f,.16f);EditorUtility.SetDirty(chamber);}
+            }
+            if(definition.role==DeepBuildingRole.Storage&&definition.id!="printing_pod"&&visual!=null)
+            {
+                // This was an accidentally generated second warehouse, not part of the crate image.
+                var duplicate=visual.Find("Stacked bin");
+                if(duplicate!=null)
+                {
+                    if(PrefabUtility.IsPartOfPrefabInstance(duplicate))duplicate.gameObject.SetActive(false);
+                    else UnityEngine.Object.DestroyImmediate(duplicate.gameObject);
+                }
+            }
             if(definition.role==DeepBuildingRole.Light){MountLamp(building);return;}
             if(definition.role==DeepBuildingRole.Vent){MountWallVent(building);return;}
             if(!definition.requiresFloor||definition.role==DeepBuildingRole.Floor||visual==null||visual==building.transform)return;
             var art=visual.GetComponentsInChildren<SpriteRenderer>(true).Where(IsIllustration).ToArray();
             if(art.Length==0)return;
             Bounds bounds=Combined(art,building.transform);
-            // Fit the visible family, including intentional stacked bins/control panels.
+            // Fit the visible machine and its attached controls as one grounded object.
             float factor=Mathf.Min(definition.footprint.x*.91f/Mathf.Max(.01f,bounds.size.x),definition.footprint.y*.94f/Mathf.Max(.01f,bounds.size.y));
             if(Mathf.Abs(factor-1)>.0001f)visual.localScale*=factor;
             bounds=Combined(art,building.transform);
@@ -157,6 +215,8 @@ namespace DeepPressure.Editor
         static void UpgradeWorker(DeepWorkerPresentation look)
         {
             var worker=look.GetComponent<DeepWorker>();if(worker==null||worker.visualRenderer==null)return;
+            var workerMaterial=AssetDatabase.LoadAssetAtPath<Material>(Root+"/Materials/WorkerLit.mat");
+            if(workerMaterial!=null){worker.visualRenderer.sharedMaterial=workerMaterial;EditorUtility.SetDirty(worker.visualRenderer);}
             look.idleDetails=Frames("idle_detail",4);look.carrying=Frames("carry",4);look.climbing=Frames("climb",4);
             var frames=new List<Sprite>{look.idle};frames.AddRange(look.walking??Array.Empty<Sprite>());frames.AddRange(look.working??Array.Empty<Sprite>());
             frames.AddRange(look.idleDetails);frames.AddRange(look.carrying);frames.AddRange(look.climbing);
@@ -224,7 +284,8 @@ namespace DeepPressure.Editor
         static void InstrumentMachine(DeepBuildingInstance building,SpriteRenderer main)
         {
             var definition=building.definition;
-            if(definition.powerRequired<=0&&definition.powerGenerated<=0&&building.GetComponent<GasNode>()==null&&definition.id!="battery")return;
+            bool workstation=definition.role==DeepBuildingRole.Fabricator||definition.role==DeepBuildingRole.Research;
+            if(!workstation&&definition.role!=DeepBuildingRole.Storage&&definition.id!="oxygen_diffuser"&&definition.powerRequired<=0&&definition.powerGenerated<=0&&building.GetComponent<GasNode>()==null&&definition.id!="battery")return;
             var motion=building.GetComponent<DeepMachineMotion>();if(motion==null)motion=building.gameObject.AddComponent<DeepMachineMotion>();
             motion.node=building.GetComponent<GasNode>();motion.housing=main.transform;motion.housingRestPosition=main.transform.localPosition;
             float unit=(512f/5.5f)/main.sprite.pixelsPerUnit;
@@ -244,7 +305,51 @@ namespace DeepPressure.Editor
                 var lamp=AssetDatabase.LoadAssetAtPath<Sprite>(Root+"/Art/Pipes/Indicator.png");
                 if(lamp!=null){Rect b=OpaqueLocalBounds(main.sprite);motion.statusLight=Instrument(main.transform,"Baked • operating status lamp",lamp,new Vector3(b.center.x+b.width*.25f,b.yMin+b.height*.52f,-.04f),.10f*unit,main.sortingOrder+4);}
             }
+            if(motion.node!=null&&(main.sprite.name.StartsWith("compressor",StringComparison.Ordinal)||main.sprite.name.StartsWith("separator",StringComparison.Ordinal)||main.sprite.name.StartsWith("tank",StringComparison.Ordinal)))
+            {
+                Vector3 gauge=main.sprite.name.StartsWith("compressor",StringComparison.Ordinal)?Project(.7f,-.655f,1.53f):
+                    main.sprite.name.StartsWith("separator",StringComparison.Ordinal)?Project(0,-.66f,2.41f):Project(-.42f,-.914f,2.64f);
+                var dial=AssetDatabase.LoadAssetAtPath<Sprite>(Root+"/Art/Pipes/GaugeFace.png");
+                var needle=AssetDatabase.LoadAssetAtPath<Sprite>(Root+"/Art/Pipes/Needle.png");
+                if(dial!=null&&needle!=null)
+                {
+                    Instrument(main.transform,"Baked • live pressure dial",dial,gauge*unit,.33f*unit,main.sortingOrder+2);
+                    var pointer=Instrument(main.transform,"Baked • live pressure needle",needle,gauge*unit,.28f*unit,main.sortingOrder+3);
+                    motion.pressureNeedle=pointer.transform;motion.needleRestPosition=pointer.transform.localPosition;
+                }
+            }
             if(definition.id=="battery")motion.chargeSegments=Enumerable.Range(0,3).Select(i=>building.visualRoot.Find("Charge marking "+i)?.GetComponent<SpriteRenderer>()).Where(x=>x!=null).ToArray();
+            var scans=new List<DeepMachineMotion.MovingDetail>();
+            foreach(var console in building.visualRoot.GetComponentsInChildren<SpriteRenderer>(true).Where(x=>x.sprite!=null&&x.sprite.name=="console_Color"))
+            {
+                // Positions reference the existing 512 px Color canvas; all maps keep the same UVs.
+                for(int i=0;i<2;i++)
+                {
+                    float ppu=console.sprite.pixelsPerUnit;
+                    Vector2 center=(new Vector2(i==0?176:290,251)-console.sprite.pivot)/ppu;
+                    string name="Motion • screen scan "+i;
+                    Strip(console.transform,name,center,new Vector2(74/ppu,2.5f/ppu),new Color(.48f,.88f,.77f,.5f),console.sortingOrder+3);
+                    var scan=console.transform.Find(name).GetComponent<SpriteRenderer>();scan.enabled=false;
+                    scans.Add(new DeepMachineMotion.MovingDetail{renderer=scan,restPosition=scan.transform.localPosition,travel=36/ppu,phase=i*.35f});
+                }
+            }
+            if(definition.id=="printing_pod")for(int i=0;i<3;i++)
+            {
+                var scan=building.visualRoot.Find("Chamber scan "+i)?.GetComponent<SpriteRenderer>();
+                if(scan!=null)scans.Add(new DeepMachineMotion.MovingDetail{renderer=scan,restPosition=scan.transform.localPosition,travel=.28f,phase=i*.3f,opacity=.35f});
+            }
+            motion.screenScans=scans.ToArray();
+            if(definition.id=="oxygen_diffuser")
+            {
+                var bubble=AssetDatabase.LoadAssetAtPath<Sprite>(Root+"/Art/Pipes/Indicator.png");
+                var details=new List<DeepMachineMotion.MovingDetail>();Rect bounds=OpaqueLocalBounds(main.sprite);
+                if(bubble!=null)for(int i=0;i<4;i++)
+                {
+                    var sprite=Instrument(main.transform,"Motion • oxygen bubble "+i,bubble,new Vector3(bounds.xMin+bounds.width*(.25f+i*.17f),bounds.yMin+bounds.height*.53f,-.05f),.055f*unit,main.sortingOrder+3);
+                    sprite.enabled=false;details.Add(new DeepMachineMotion.MovingDetail{renderer=sprite,restPosition=sprite.transform.localPosition,travel=bounds.height*.58f,phase=i*.25f});
+                }
+                motion.oxygenBubbles=details.ToArray();
+            }
             EditorUtility.SetDirty(motion);
         }
         static Vector3 Project(float x,float y,float z)=>new Vector3(x,(15*z+3.1f*y)/Mathf.Sqrt(15*15+3.1f*3.1f),-.04f);
@@ -269,7 +374,7 @@ namespace DeepPressure.Editor
             child.localScale=scale;EditorUtility.SetDirty(child);EditorUtility.SetDirty(renderer);
         }
 
-        static bool IsIllustration(SpriteRenderer renderer)=>renderer.sprite!=null&&renderer.sprite.name.EndsWith("_Color",StringComparison.Ordinal);
+        static bool IsIllustration(SpriteRenderer renderer)=>renderer.gameObject.activeSelf&&renderer.sprite!=null&&renderer.sprite.name.EndsWith("_Color",StringComparison.Ordinal);
         static Bounds Combined(SpriteRenderer[] renderers,Transform basis)
         {
             bool first=true;Bounds bounds=default;
@@ -343,5 +448,98 @@ namespace DeepPressure.Editor
                 }
             report.AppendLine("Checked "+checkedBuildings+" grounded prefabs and "+furnished+" authored floor furnishings; source image and normal/AO UVs unchanged.");return report.ToString();
         }
+
+        public static string ValidateMachinePresentation(DeepGameplayCatalog catalog)
+        {
+            if(EditorApplication.isPlayingOrWillChangePlaymode)throw new InvalidOperationException("Run machine validation outside Play.");
+            int checkedCount=0;
+            foreach(var definition in catalog.buildings)
+            {
+                if(definition==null||definition.prefab==null)continue;
+                var art=definition.prefab.GetComponentsInChildren<SpriteRenderer>(true).Where(IsIllustration).ToArray();
+                if(definition.role==DeepBuildingRole.Storage&&definition.id!="printing_pod"&&art.Count(x=>x.sprite.name=="crate_Color")!=1)
+                    throw new InvalidOperationException(definition.id+" must render exactly one warehouse crate.");
+                bool bench=definition.role==DeepBuildingRole.Fabricator||definition.role==DeepBuildingRole.Research;
+                if(!bench&&definition.id!="oxygen_diffuser")continue;
+                var motion=definition.prefab.GetComponent<DeepMachineMotion>();
+                if(motion==null||motion.statusLight==null)throw new InvalidOperationException(definition.id+" lacks operating feedback.");
+                if(bench&&(motion.screenScans.Length<2||motion.screenScans.Any(x=>x.renderer==null)))throw new InvalidOperationException(definition.id+" has no live workstation screens.");
+                if(definition.id=="oxygen_diffuser"&&(motion.oxygenBubbles.Length!=4||motion.oxygenBubbles.Any(x=>x.renderer==null)))throw new InvalidOperationException("Diffuser lacks flow-driven oxygen bubbles.");
+                checkedCount++;
+            }
+            var preview=EditorSceneManager.NewPreviewScene();var root=new GameObject("Machine motion validation");root.SetActive(false);
+            UnityEngine.SceneManagement.SceneManager.MoveGameObjectToScene(root,preview);
+            var definitionFixture=ScriptableObject.CreateInstance<DeepBuildingDefinition>();
+            var stockItem=ScriptableObject.CreateInstance<DeepItemDefinition>();stockItem.id="art_validation_stock";
+            try
+            {
+                var session=root.AddComponent<DeepGameSession>();
+                var station=new GameObject("Unpowered hand workbench");station.transform.SetParent(root.transform,false);
+                var building=station.AddComponent<DeepBuildingInstance>();definitionFixture.id="test_bench";definitionFixture.role=DeepBuildingRole.Fabricator;definitionFixture.powerRequired=0;
+                building.definition=definitionFixture;building.session=session;
+                var visual=new GameObject("Grounded chassis");visual.transform.SetParent(station.transform,false);visual.transform.localPosition=new Vector3(.3f,.7f,0);
+                var fan=new GameObject("Rotor");fan.transform.SetParent(visual.transform,false);
+                var scan=new GameObject("Live screen").AddComponent<SpriteRenderer>();scan.transform.SetParent(visual.transform,false);
+                var worker=station.AddComponent<DeepWorker>();var motion=station.AddComponent<DeepMachineMotion>();
+                motion.housing=visual.transform;motion.housingRestPosition=visual.transform.localPosition;motion.fan=fan.transform;
+                motion.screenScans=new[]{new DeepMachineMotion.MovingDetail{renderer=scan,restPosition=new Vector3(.1f,.4f,0),travel=.2f}};
+                var order=new DeepWorkOrder{targetBuilding=building,worker=worker,state=DeepWorkState.Queued};session.Orders.Add(order);
+                motion.AdvanceVisuals(.2f);AssertMotion(!motion.IsAnimatingWork&&motion.RotorSpeed==0&&!scan.enabled,"Queued work must not animate production.");
+                order.state=DeepWorkState.Working;motion.AdvanceVisuals(.2f);
+                AssertMotion(motion.IsAnimatingWork&&motion.RotorSpeed>0&&scan.enabled,"A zero-power hand workbench must animate real work. active="+motion.IsAnimatingWork+", rotor="+motion.RotorSpeed+", screen="+scan.enabled+", operational="+building.IsOperational+", worker="+worker.IsAlive+", paused="+session.IsSimulationPaused);
+                AssertMotion(visual.transform.localPosition==motion.housingRestPosition,"Working machine feet must remain grounded.");
+                Vector3 before=scan.transform.localPosition;session.paused=true;motion.AdvanceVisuals(.25f);
+                AssertMotion(before==scan.transform.localPosition,"Simulation pause must freeze machine details.");session.paused=false;
+                order.state=DeepWorkState.Blocked;motion.AdvanceVisuals(1);
+                AssertMotion(!motion.IsAnimatingWork&&motion.RotorSpeed==0&&!scan.enabled,"Blocked work must stop production motion.");
+                order.state=DeepWorkState.Working;motion.AdvanceVisuals(.1f);order.state=DeepWorkState.Completed;motion.AdvanceVisuals(.1f);
+                AssertMotion(!motion.IsAnimatingWork&&scan.enabled,"Completion should give one short confirmation.");motion.AdvanceVisuals(1);
+                AssertMotion(!scan.enabled,"Completion feedback must settle back to idle.");
+                definitionFixture.id="oxygen_diffuser";definitionFixture.role=DeepBuildingRole.Structure;session.Orders.Clear();motion.screenScans=Array.Empty<DeepMachineMotion.MovingDetail>();
+                motion.oxygenBubbles=new[]{new DeepMachineMotion.MovingDetail{renderer=scan,travel=.5f}};
+                building.lastRoomGasTransferMolPerSecond=.1f;motion.AdvanceVisuals(.1f);AssertMotion(motion.IsAnimatingWork&&scan.enabled,"Actual oxygen delivery must animate bubbles.");
+                building.lastRoomGasTransferMolPerSecond=0;motion.AdvanceVisuals(.1f);AssertMotion(!motion.IsAnimatingWork&&!scan.enabled,"Empty or pressure-limited diffusers must stop bubbles.");
+                definitionFixture.id="storage";definitionFixture.role=DeepBuildingRole.Storage;motion.oxygenBubbles=Array.Empty<DeepMachineMotion.MovingDetail>();motion.statusLight=scan;
+                session.inventory.TryAdd(stockItem,2);motion.AdvanceVisuals(.1f);
+                session.inventory.TryReserve(new[]{new DeepItemAmount(stockItem,1)},out var reservation,out _);motion.AdvanceVisuals(.1f);
+                AssertMotion(!motion.HasStorageFeedback,"A reservation without actual inventory transfer must not animate a warehouse.");
+                int used=session.inventory.UsedCapacity;
+                session.inventory.Complete(reservation,new[]{new DeepItemAmount(stockItem,1)},1,out _);motion.AdvanceVisuals(.1f);
+                AssertMotion(session.inventory.UsedCapacity==used&&motion.HasStorageFeedback,"Equal incoming/outgoing transactions must remain visible even with zero net capacity change.");
+                motion.AdvanceVisuals(1);AssertMotion(!motion.HasStorageFeedback,"Warehouse feedback must settle without fake idle work.");
+                Vector3 badgeRest=scan.transform.localScale;session.paused=true;motion.NotifySwitchFeedback();motion.NotifySwitchFeedback();
+                AssertMotion(motion.HasInteractionFeedback,"A direct switch must acknowledge input while paused.");motion.AdvanceInteraction(1);
+                AssertMotion(!motion.HasInteractionFeedback&&Vector3.Distance(scan.transform.localScale,badgeRest)<.0001f,"Repeated switch feedback must settle to its original scale in real time.");session.paused=false;
+            }
+            finally{UnityEngine.Object.DestroyImmediate(root);UnityEngine.Object.DestroyImmediate(definitionFixture);UnityEngine.Object.DestroyImmediate(stockItem);EditorSceneManager.ClosePreviewScene(preview);}
+            return "PASS machine presentation: single warehouse sprite; "+checkedCount+" instrumented workstations/diffuser prefabs; real work, blocked, pause, completion, oxygen delivery, stationary chassis, actual warehouse transactions and paused switch confirmation.\n"+ValidateLegacySceneArtCompatibility(catalog);
+        }
+        static string ValidateLegacySceneArtCompatibility(DeepGameplayCatalog catalog)
+        {
+            var preview=EditorSceneManager.NewPreviewScene();var root=new GameObject("Legacy world art compatibility fixture");root.SetActive(false);
+            UnityEngine.SceneManagement.SceneManager.MoveGameObjectToScene(root,preview);
+            try
+            {
+                var world=root.AddComponent<DeepPressureWorld>();
+                var storage=catalog.FindBuilding("storage");AssertMotion(storage?.prefab!=null,"Legacy art fixture requires catalog storage.");
+                var go=UnityEngine.Object.Instantiate(storage.prefab,root.transform);var building=go.GetComponent<DeepBuildingInstance>();building.definition=storage;building.RefreshOwnedComponents();
+                var duplicate=new GameObject("Stacked bin");duplicate.transform.SetParent(building.visualRoot,false);
+                var ambient=new GameObject("Ambient").AddComponent<Light2D>();ambient.transform.SetParent(root.transform,false);ambient.lightType=Light2D.LightType.Global;ambient.intensity=.1f;
+                var custom=new GameObject("My custom work light").AddComponent<Light2D>();custom.transform.SetParent(root.transform,false);custom.color=Color.magenta;custom.intensity=.73f;
+                var workerObject=new GameObject("New printed legacy worker");workerObject.transform.SetParent(root.transform,false);
+                var worker=workerObject.AddComponent<DeepWorker>();worker.visualRenderer=workerObject.AddComponent<SpriteRenderer>();
+                worker.visualRenderer.sharedMaterial=AssetDatabase.LoadAssetAtPath<Material>(Root+"/Materials/IndustrialLit.mat");
+                var material=worker.visualRenderer.sharedMaterial;Vector3 origin=building.transform.position;
+                var upgrade=root.AddComponent<DeepWorldArtUpgrade>();upgrade.ApplyNow();
+                AssertMotion(!duplicate.activeSelf&&building.transform.position==origin,"Legacy warehouse repair must remove its known duplicate without moving the logical building.");
+                var block=new MaterialPropertyBlock();worker.visualRenderer.GetPropertyBlock(block);
+                AssertMotion(Mathf.Approximately(block.GetFloat("_MinimumLight"),.38f)&&worker.visualRenderer.sharedMaterial==material,"Legacy/new workers need readable fill without cloned material assets.");
+                AssertMotion(Mathf.Approximately(ambient.intensity,.56f)&&custom.color==Color.magenta&&Mathf.Approximately(custom.intensity,.73f),"Only named project ambient and owned building fixtures may be calibrated.");
+                ambient.intensity=.81f;upgrade.ApplyNow();AssertMotion(Mathf.Approximately(ambient.intensity,.81f),"Compatibility must not repeatedly overwrite live authored adjustments.");
+            }
+            finally{UnityEngine.Object.DestroyImmediate(root);EditorSceneManager.ClosePreviewScene(preview);}
+            return "PASS legacy scene Play compatibility: duplicate warehouse removal preserves building coordinates; worker property-block fill preserves shared material; project ambient is calibrated once; custom lights and later manual changes remain intact.";
+        }
+        static void AssertMotion(bool condition,string message){if(!condition)throw new InvalidOperationException(message);}
     }
 }

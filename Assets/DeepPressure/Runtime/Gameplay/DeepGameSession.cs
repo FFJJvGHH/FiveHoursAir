@@ -19,7 +19,7 @@ namespace DeepPressure
         public DeepTerrainTile constructedFloorTile;
         public Material playerPipeMaterial;
         public bool menuOpen,paused;
-        [Range(.25f,4)] public float speed = 1;
+        [Range(.25f,6)] public float speed = 1;
         public float DeltaTime { get; private set; }
         public float SimulationTime { get; private set; }
         public float PowerProduction { get; private set; }
@@ -75,7 +75,7 @@ namespace DeepPressure
             InitializeSession();
             if (!initialized) return;
             if (network != null) { network.paused = IsSimulationPaused; network.simulationSpeed = speed; }
-            DeltaTime = IsSimulationPaused ? 0 : Mathf.Max(0,unscaledSeconds)*Mathf.Clamp(speed,.25f,4);
+            DeltaTime = IsSimulationPaused ? 0 : Mathf.Max(0,unscaledSeconds)*Mathf.Clamp(speed,.25f,6);
             if (DeltaTime <= 0) return;
             SimulationTime += DeltaTime; UpdatePower(DeltaTime);
             TickLifeSupport(DeltaTime);
@@ -112,11 +112,12 @@ namespace DeepPressure
                     if (building.definition.role == DeepBuildingRole.Ladder) ladderCells.Add(cell);
                 }
             }
+            NotifyNavigationChanged();
             InvalidatePowerTopology();
         }
         public bool IsLadder(Vector2Int cell)
         {
-            return ladderCells.Contains(cell);
+            return supportedLadderCells.Contains(cell);
         }
         public bool IsPassable(Vector2Int cell)
         {
@@ -140,6 +141,7 @@ namespace DeepPressure
         {
             if (building == null || !Buildings.Contains(building)) return;
             building.isOn = !building.isOn; UpdatePower(0);
+            building.GetComponent<DeepMachineMotion>()?.NotifySwitchFeedback();
             DeepParticleFeedback.Emit(DeepFeedbackKind.Switch,building.transform.position);
         }
         public void RefreshStorageCapacity()

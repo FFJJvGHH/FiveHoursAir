@@ -76,6 +76,8 @@ MonoBehaviour:
   pressureNeedle: {fileID: 0}
   statusLight: {fileID: 1718810684447318422}
   chargeSegments: []
+  screenScans: []
+  oxygenBubbles: []
   housingRestPosition: {x: 1.5, y: 0.4286755, z: 0}
   fanRestPosition: {x: -0.83, y: 1.0223619, z: -0.04}
   needleRestPosition: {x: 0, y: 0, z: 0}

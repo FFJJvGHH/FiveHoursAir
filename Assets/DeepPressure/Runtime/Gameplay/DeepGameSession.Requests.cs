@@ -50,6 +50,8 @@ namespace DeepPressure
             }
             if (definition.requiresFloor)
                 for (int x = area.xMin; x < area.xMax; x++) if (!IsSupport(new Vector2Int(x,area.yMin-1)) && !IsPlannedSupport(new Vector2Int(x,area.yMin-1))) { reason = "建筑底部需要地面或已规划的承重地板"; return false; }
+            if(definition.role==DeepBuildingRole.Ladder&&!LadderHasAnchor(area,true))
+            {reason="梯子链需要连接实体墙面、地板或已有承重梯子";return false;}
             if (!inventory.CanAfford(definition.cost,out reason)) return false;
             return true;
         }
@@ -68,6 +70,7 @@ namespace DeepPressure
             if (!initialized || !world.IsInside(cell) || !IsKnown(cell)) { reason = "只能挖掘已探明地形"; return false; }
             if (world.GetTerrain(cell.x,cell.y) == TerrainKind.Empty) { reason = "这里没有可挖掘的地形"; return false; }
             if (BuildingAt(cell) != null || placementClaims.ContainsKey(cell)) { reason = "位置已有建筑或工单"; return false; }
+            if(RemovingSupportDetachesLadder(cell)){reason="这是梯子链最后的承重点，请先补建支撑";return false;}
             foreach (var order in Orders) if (!order.IsTerminal && order.kind == DeepWorkKind.Dig && order.targetCell == cell) { reason = "该位置已有挖掘工单"; return false; }
             return true;
         }
@@ -114,23 +117,58 @@ namespace DeepPressure
         }
         public bool CanCraft(DeepRecipeDefinition recipe,int batches,out string reason)
         {
-            InitializeSession(); reason = string.Empty;
+            InitializeSession();
+            if(recipe==null){reason="配方或数量无效";return false;}
+            if(!FindReachableStation(DeepBuildingRole.Fabricator,recipe.requiredBuildingId,true,out var station,HasCost(recipe.inputs)))
+            {reason="请先选择已建成、可运行且可达的生产设备";return false;}
+            return CanCraftAt(station,recipe,batches,out reason);
+        }
+        public bool StationCanMake(DeepBuildingInstance station,DeepRecipeDefinition recipe)
+        {
+            return station!=null&&Buildings.Contains(station)&&station.isConstructed&&station.isActiveAndEnabled&&station.definition!=null&&
+                station.definition.role==DeepBuildingRole.Fabricator&&recipe!=null&&
+                (string.IsNullOrWhiteSpace(recipe.requiredBuildingId)||recipe.requiredBuildingId==station.definition.id);
+        }
+        public List<DeepWorkOrder> CraftQueueFor(DeepBuildingInstance station)
+        {
+            var result=new List<DeepWorkOrder>();
+            if(station!=null)foreach(var order in Orders)if(!order.IsTerminal&&order.kind==DeepWorkKind.Craft&&order.targetBuilding==station)result.Add(order);
+            result.Sort((a,b)=>a.id.CompareTo(b.id));return result;
+        }
+        public bool CanCraftAt(DeepBuildingInstance station,DeepRecipeDefinition recipe,int batches,out string reason)
+        {
+            InitializeSession(); reason=string.Empty;
             if (!initialized || recipe == null || batches < 1 || batches > 99) { reason = "配方或数量无效"; return false; }
+            if(!StationCanMake(station,recipe)){reason="请选择支持此配方的已建成实体设备";return false;}
+            if(!station.IsOperational){reason="这台设备已关闭或电力不足";return false;}
             if (!IsTechUnlocked(recipe.requiredTechId)) { reason = "需要科技："+TechnologyLabel(recipe.requiredTechId); return false; }
             if (recipe.outputs == null || recipe.outputs.Length == 0) { reason = "配方没有产出"; return false; }
             foreach (var output in recipe.outputs) if (output.item == null || output.amount <= 0) { reason = "配方产出尚未配置"; return false; }
             if (!inventory.CanAfford(recipe.inputs,out reason,batches)) return false;
-            if (!FindReachableStation(DeepBuildingRole.Fabricator,recipe.requiredBuildingId,false,out _,HasCost(recipe.inputs))) { reason = "需要可达仓库及制造台"; return false; }
+            var positions=WorkPositions(station.Bounds);bool reachable=false;
+            foreach(var worker in Workers)
+            {
+                if(worker==null||!worker.IsAlive||!worker.isActiveAndEnabled||!DeepNavigation.TryFindPath(this,worker.Cell,positions,out _))continue;
+                if(HasCost(recipe.inputs)&&!TryMaterialRoute(worker,positions,out _,out _,out _,out _))continue;
+                reachable=true;break;
+            }
+            if(!reachable){reason="人员无法从仓库将物料送到这台设备";return false;}
             return true;
         }
         public bool RequestCraft(DeepRecipeDefinition recipe,int batches,out string reason)
         {
-            if (!CanCraft(recipe,batches,out reason)) return false;
+            InitializeSession();
+            if(recipe==null||!FindReachableStation(DeepBuildingRole.Fabricator,recipe.requiredBuildingId,true,out var station,HasCost(recipe.inputs)))
+            {reason="需要已建成、可运行且可达的生产设备";return false;}
+            return RequestCraftAt(station,recipe,batches,out reason);
+        }
+        public bool RequestCraftAt(DeepBuildingInstance station,DeepRecipeDefinition recipe,int batches,out string reason)
+        {
+            if(!CanCraftAt(station,recipe,batches,out reason))return false;
             if (!inventory.TryReserve(recipe.inputs,out var reservation,out reason,batches)) return false;
-            FindReachableStation(DeepBuildingRole.Fabricator,recipe.requiredBuildingId,false,out var station);
             var order = NewOrder(DeepWorkKind.Craft,"制造 "+recipe.displayName,station.origin,recipe.workSeconds*batches);
             order.recipe = recipe; order.batches = batches; order.targetBuilding = station; order.reservation = reservation;
-            reason = "已排入制造队列"; return true;
+            reason = "已加入 "+station.definition.displayName+" 的生产队列"; return true;
         }
         public bool CanPipe(GasNode from,GasNode to,GasOutputPort port,out string reason)
         {
@@ -194,9 +232,23 @@ namespace DeepPressure
             var cells = new List<Vector2Int>();
             for (int y = area.yMin-2; y <= area.yMax; y++) for (int x = area.xMin-1; x <= area.xMax; x++)
             {
-                var cell = new Vector2Int(x,y); if (!area.Contains(cell) && IsStandable(cell)) cells.Add(cell);
+                var cell = new Vector2Int(x,y);
+                if(!area.Contains(cell)&&IsStandable(cell)&&HasWorkReach(cell,area))cells.Add(cell);
             }
             return cells;
+        }
+        bool HasWorkReach(Vector2Int feet,RectInt area)
+        {
+            // A hand reaches one cell from the feet or head. Diagonals require an open elbow,
+            // so a worker on a ledge may build the first rung below it, never through a solid wall.
+            foreach(var body in new[]{feet,feet+Vector2Int.up})
+                foreach(var target in area.allPositionsWithin)
+                {
+                    var delta=target-body;int dx=Mathf.Abs(delta.x),dy=Mathf.Abs(delta.y);
+                    if(dx+dy<=1)return true;
+                    if(dx==1&&dy==1&&(ClearBodyCell(new Vector2Int(target.x,body.y))||ClearBodyCell(new Vector2Int(body.x,target.y))))return true;
+                }
+            return false;
         }
         static bool HasCost(DeepItemAmount[] cost) { if (cost == null) return false; foreach (var item in cost) if (item.amount > 0) return true; return false; }
         bool TryWarehousePath(DeepWorker worker,out List<Vector2Int> path,out Vector2Int pickupCell)

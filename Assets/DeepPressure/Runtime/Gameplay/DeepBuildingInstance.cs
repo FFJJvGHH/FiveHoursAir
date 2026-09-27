@@ -10,6 +10,7 @@ namespace DeepPressure
         public Vector2Int origin;
         public bool isOn = true, isConstructed = true, powered;
         [Min(0)] public float batteryEnergy, fuelSecondsRemaining;
+        [System.NonSerialized] public float lastRoomGasTransferMolPerSecond;
         public Light2D[] lights;
         public SpriteRenderer[] glowRenderers;
         public Transform visualRoot;

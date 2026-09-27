@@ -1,0 +1,41 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: a7ef9c465d394bcb95842e1e7dfd45aa, type: 3}
+  m_Name: DeepSimulationTuning
+  m_EditorClassIdentifier:
+  breathingMolPerSecond: 0.07
+  diffusionPerSecond: 2.4
+  initialCarbonDioxideFraction: 0.0004
+  algaeConversionMolPerSecond: 1.5
+  cultureCapacityMol: 30
+  algaeAirReachCells: 3
+  algaeTargetOxygenKPa: 23
+  minimumPressureKPa: 30
+  maximumPressureKPa: 180
+  oxygenWarningKPa: 19.5
+  minimumOxygenKPa: 16
+  maximumOxygenKPa: 32
+  carbonWarningKPa: 0.5
+  carbonImpairmentKPa: 2
+  carbonDangerKPa: 4
+  warningWorkEfficiency: 0.85
+  impairedWorkEfficiency: 0.65
+  carbonToxicityDamagePerSecond: 0.6
+  processVaporDangerFraction: 0.015
+  processVaporDamagePerSecond: 0.8
+  pressureExposureDamagePerSecond: 0.35
+  oxygenExcessDamagePerSecond: 0.2
+  airReserveSeconds: 90
+  airReserveRecoveryPerSecond: 4
+  suffocationDamagePerSecond: 5
+  pressureShockThresholdKPa: 40
+  pressureShockDamageScale: 9

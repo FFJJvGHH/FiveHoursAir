@@ -18,7 +18,7 @@ namespace DeepPressure
                 RequireSave(data.terrain != null && data.terrain.Length == world.width*world.height && data.terrainTiles != null && data.terrainTiles.Length == data.terrain.Length,"地形数据不完整");
                 foreach (var kind in data.terrain) RequireSave(Enum.IsDefined(typeof(TerrainKind),kind),"地形类型无效");
                 RequireSave(data.inventory != null && data.technologies != null && data.buildings != null && data.nodes != null && data.links != null && data.workers != null && data.orders != null && data.rooms != null,"存档缺少必要数据");
-                RequireSave(SaveFinite(data.simulationTime) && data.simulationTime >= 0 && SaveFinite(data.speed) && data.speed >= .25f && data.speed <= 4,"模拟时钟数据无效");
+                RequireSave(SaveFinite(data.simulationTime) && data.simulationTime >= 0 && SaveFinite(data.speed) && data.speed >= .25f && data.speed <= 6,"模拟时钟数据无效");
                 RequireSave(SaveFinite(data.networkElapsed) && data.networkElapsed >= 0 && data.networkSteps >= 0 && SaveFinite(data.networkRemainder) && data.networkRemainder >= 0,"气体时钟数据无效");
                 RequireSave(network == null || SaveFinite(data.networkStepSeconds) && data.networkStepSeconds >= .01f && data.networkStepSeconds <= .5f,"气体步长无效");
                 RequireSave(data.displacedGas.IsFiniteAndNonnegative,"排挤气体数据无效");
@@ -27,7 +27,7 @@ namespace DeepPressure
                 {
                     RequireSave(data.wires!=null&&data.production!=null&&SaveFinite(data.stableAirSeconds)&&data.stableAirSeconds>=0,"电网或生产数据缺失");
                     var cells=new HashSet<Vector2Int>();foreach(var cell in data.wires)RequireSave(world.IsInside(cell)&&cells.Add(cell),"电线格重复或越界");
-                    var recipes=new HashSet<string>();foreach(var p in data.production)RequireSave(p!=null&&catalog.FindRecipe(p.recipeId)!=null&&recipes.Add(p.recipeId)&&p.targetAmount>0&&p.targetAmount<=999,"生产目标无效");
+                    var recipes=new HashSet<string>();foreach(var p in data.production)RequireSave(p!=null&&catalog.FindRecipe(p.recipeId)!=null&&recipes.Add((p.stationId??string.Empty)+"|"+p.recipeId)&&p.targetAmount>0&&p.targetAmount<=999,"生产目标无效");
                     if(data.lifeSupport)
                     {
                         RequireSave(data.atmosphereCells!=null&&data.atmosphereTemperatures!=null&&data.atmosphereCells.Length==data.terrain.Length&&data.atmosphereTemperatures.Length==data.terrain.Length,"逐格气氛数据不完整");
@@ -99,9 +99,11 @@ namespace DeepPressure
                     RequireSave(SaveFinite(entry.position) && SaveFinite(entry.moveSpeed) && entry.moveSpeed > 0 && SaveFinite(entry.workSpeed) && entry.workSpeed > 0,"工人状态无效");
                     foreach (int preference in new[] { entry.digPreference,entry.buildPreference,entry.researchPreference,entry.craftPreference,entry.pipePreference }) RequireSave(preference >= 0 && preference <= 3,"工人优先级无效");
                     RequireSave(entry.path != null,"工人路线缺失"); foreach (var cell in entry.path) RequireSave(world.IsInside(cell),"工人路线超出地图");
+                    RequireSave(entry.remainingMotionWaypoints>=0&&entry.remainingMotionWaypoints<=3,"工人运动阶段无效");
+                    if(entry.remainingMotionWaypoints>0)RequireSave(entry.path.Length>0&&world.IsInside(entry.traversalOrigin),"工人运动起点无效");
                     savedWorkers.Add(entry.id,entry);
                     if(data.systemsRevision>=3){RequireSave(SaveFinite(entry.health)&&entry.health>=0&&entry.health<=100&&SaveFinite(entry.diedAtSeconds),"人员健康无效");RequireSave(entry.health>0||entry.currentOrderId<0&&entry.path.Length==0,"死亡人员仍占用工作");}
-                    RequireSave(SaveFinite(entry.airReserveSeconds)&&entry.airReserveSeconds>=0&&entry.airReserveSeconds<=90,"工人气氛缓冲状态无效");
+                    RequireSave(SaveFinite(entry.airReserveSeconds)&&entry.airReserveSeconds>=0&&entry.airReserveSeconds<=Mathf.Max(90,SimulationTuning.airReserveSeconds),"工人气氛缓冲状态无效");
                     if(data.systemsRevision>=2)RequireSave(SaveFinite(entry.nextWorkSearchTime)&&entry.nextWorkSearchTime>=0&&SaveFinite(entry.environmentEfficiency)&&entry.environmentEfficiency>=.5f&&entry.environmentEfficiency<=1,"工人调度或气氛效率状态无效");
                 }
                 var orderIds = new HashSet<int>(); var savedOrders = new Dictionary<int,DeepSavedOrder>(); var wirePlans = new HashSet<Vector2Int>(); long held = 0;
@@ -127,6 +129,12 @@ namespace DeepPressure
                     RequireSave(string.IsNullOrEmpty(entry.workerId) || workerIds.Contains(entry.workerId),"工单执行者缺失");
                     RequireSave(string.IsNullOrEmpty(entry.requestedWorkerId) || workerIds.Contains(entry.requestedWorkerId),"工单指定工人缺失");
                     RequireSave(string.IsNullOrEmpty(entry.targetBuildingId) || buildingIds.Contains(entry.targetBuildingId),"工单工作台缺失");
+                    if(active&&entry.kind==DeepWorkKind.Craft)
+                    {
+                        RequireSave(!string.IsNullOrEmpty(entry.targetBuildingId)&&savedBuildings.ContainsKey(entry.targetBuildingId),"制造工单缺少指定生产设备");
+                        var stationDefinition=catalog.FindBuilding(savedBuildings[entry.targetBuildingId].definitionId);var recipe=catalog.FindRecipe(entry.recipeId);
+                        RequireSave(stationDefinition.role==DeepBuildingRole.Fabricator&&(string.IsNullOrWhiteSpace(recipe.requiredBuildingId)||recipe.requiredBuildingId==stationDefinition.id),"制造工单配方与指定设备不匹配");
+                    }
                     if (entry.reservation != null) { ValidateSavedItems(entry.reservation); if (!entry.reservationSettled) foreach (var item in entry.reservation) held += item.amount; }
                     RequireSave(!active || !entry.reservationSettled,"未完成工单的材料已经结算");
                     RequireSave(active || string.IsNullOrEmpty(entry.workerId),"已结束工单仍占用工人");

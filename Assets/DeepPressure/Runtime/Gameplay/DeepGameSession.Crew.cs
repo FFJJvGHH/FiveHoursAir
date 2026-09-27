@@ -58,14 +58,14 @@ namespace DeepPressure
             var candidate=candidates[candidateIndex];
             var worker=CreateWorkerObject();
             worker.displayName=candidate.displayName;worker.name="人员 · "+candidate.displayName;
-            worker.health=100;worker.deathCause=null;worker.diedAtSeconds=-1;worker.airReserveSeconds=90;
-            worker.environmentUnsafe=false;worker.environmentEfficiency=1;worker.automationPaused=false;
+            worker.health=100;worker.deathCause=null;worker.diedAtSeconds=-1;worker.airReserveSeconds=SimulationTuning.airReserveSeconds;
+            worker.environmentUnsafe=false;worker.breathingUnsafe=false;worker.environmentCondition=null;worker.environmentEfficiency=1;worker.automationPaused=false;
             worker.currentOrder=null;worker.SetPath(null);worker.nextWorkSearchTime=0;
             worker.workSpeed=candidate.workSpeed;worker.moveCellsPerSecond=candidate.moveSpeed;
             worker.digPreference=candidate.digPreference;worker.buildPreference=candidate.buildPreference;worker.researchPreference=candidate.researchPreference;
             worker.craftPreference=worker.pipePreference=2;
             SetObjectId(worker,"w:printed:"+Guid.NewGuid().ToString("N"));
-            worker.TeleportToCell(spawn);worker.gameObject.SetActive(true);Workers.Add(worker);
+            worker.TeleportToCell(spawn);worker.GetComponent<DeepWorkerPresentation>()?.ResetLivingPose();worker.gameObject.SetActive(true);Workers.Add(worker);
             CompletePrintingChoice();RefreshExplorationVisibility();
             reason=candidate.displayName+" 已加入 · 氧气需求 +"+breathingMolPerSecond.ToString("0.00")+" mol/s";return true;
         }
@@ -93,11 +93,13 @@ namespace DeepPressure
         DeepWorker CreateWorkerObject()
         {
             DeepWorker template=workerPrefab;
-            if(template==null)foreach(var worker in Workers)if(worker!=null){template=worker;break;}
+            if(template==null)foreach(var worker in Workers)if(worker!=null&&(template==null||worker.IsAlive)){template=worker;if(worker.IsAlive)break;}
             DeepWorker result;
             if(template!=null)result=Instantiate(template,world.transform);
             else {var go=new GameObject("人员");go.transform.SetParent(world.transform);result=go.AddComponent<DeepWorker>();}
-            result.session=this;result.currentOrder=null;result.SetPath(null);return result;
+            result.session=this;result.currentOrder=null;result.SetPath(null);
+            result.transform.localRotation=Quaternion.identity;
+            result.GetComponent<DeepWorkerPresentation>()?.ResetLivingPose();return result;
         }
         public void DamageWorker(DeepWorker worker,float amount,string cause)
         {
@@ -112,7 +114,7 @@ namespace DeepPressure
                 if(order.worker==worker||order.requestedWorker==worker)CancelOrder(order);
             }
             worker.currentOrder=null;worker.SetPath(null);worker.automationPaused=true;
-            worker.environmentUnsafe=false;worker.environmentEfficiency=1;
+            worker.environmentUnsafe=false;worker.breathingUnsafe=false;worker.environmentCondition=null;worker.environmentEfficiency=1;
             OxygenDemandRate=AliveWorkerCount*Mathf.Max(0,breathingMolPerSecond);
         }
     }

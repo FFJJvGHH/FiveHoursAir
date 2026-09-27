@@ -24,6 +24,7 @@ namespace DeepPressure
         float scale = 1, uiWidth, uiHeight;
         readonly float[] hoverAmounts = new float[12];
         GUIStyle body, small, title, number, tiny;
+        GUISkin interfaceSkin;
         Font interfaceFont;
         [NonSerialized] bool initialized, draggingValve;
         string toast;
@@ -64,32 +65,34 @@ namespace DeepPressure
             title = new GUIStyle(body) { fontSize = 15, fontStyle = FontStyle.Bold };
             number = new GUIStyle(body) { fontSize = 28 };
             tiny = new GUIStyle(body) { fontSize = 9, alignment = TextAnchor.MiddleCenter };
+            InitializeInterfaceSkin();
             initialized = true;
         }
         void OnGUI()
         {
             if (world == null || network == null || viewCamera == null) return;
             InitializeStyles();
+            GUISkin originalSkin=GUI.skin;GUI.skin=interfaceSkin;
             scale = Mathf.Clamp(Mathf.Min(Screen.height / 820f,Screen.width / 1120f),.55f,1.25f);
             uiWidth = Screen.width / scale; uiHeight = Screen.height / scale;
             pointer = Event.current.mousePosition / scale;
             Matrix4x4 originalMatrix = GUI.matrix; Color originalColor = GUI.color;
             GUI.matrix = Matrix4x4.Scale(new Vector3(scale,scale,1));
-            dockRect = new Rect((uiWidth-864)*.5f,uiHeight-88,864,72);
+            dockRect = new Rect((uiWidth-882)*.5f+88,uiHeight-88,794,72);
             hoverCandidate = null;
-            if(HandleHiddenDemoInput(Event.current)){GUI.matrix=originalMatrix;GUI.color=originalColor;return;}
-            if (DrawGameFlow()) { GUI.matrix = originalMatrix; GUI.color = originalColor; return; }
+            if(HandleHiddenDemoInput(Event.current)){GUI.matrix=originalMatrix;GUI.color=originalColor;GUI.skin=originalSkin;return;}
+            if (DrawGameFlow()) { GUI.matrix = originalMatrix; GUI.color = originalColor;GUI.skin=originalSkin; return; }
             UpdateColonyInterface();
             SanitizeSelection(); cardRect = SelectionRect();
             bool overInterface = dockRect.Contains(pointer) || (HasSelection && cardRect.Contains(pointer)) || ColonyBlocksPointer || CommandBlocksPointer;
             FindHoveredWorldObject(overInterface);
             FindColonyHover(overInterface);
-            DrawWorldAccents(); DrawColonyWorldAccents(overInterface); DrawBrand(); DrawDock(); DrawInventory(); DrawCommandInterface();
+            DrawWorldAccents(); DrawColonyWorldAccents(overInterface); DrawBrand(); DrawDock(); DrawBuildSlot(); DrawInventory(); DrawCommandInterface();
             if (HasSelection && !pauseMenu) DrawSelectionCard();
             DrawColonyPanels(); DrawToast(); DrawTooltip();
             if(!HandleColonyInput(Event.current,overInterface))HandleWorldInput(Event.current,overInterface);
             DrawPauseMenu();
-            GUI.matrix = originalMatrix; GUI.color = originalColor;
+            GUI.matrix = originalMatrix; GUI.color = originalColor;GUI.skin=originalSkin;
         }
         void DrawBrand()
         {
@@ -100,14 +103,16 @@ namespace DeepPressure
         {
             Rounded(new Rect(dockRect.x,dockRect.y+6,dockRect.width,dockRect.height),new Color(0,0,0,.2f),14);
             Rounded(dockRect,Border,14); Rounded(Inset(dockRect,1),Panel,13);
-            Icon[] icons = { Icon.Build,Icon.Dig,Icon.People,Icon.Research,Icon.Air,Icon.Pressure,Icon.Layers,Icon.Sample,Icon.Explore,Icon.Wire,ColonyPaused ? Icon.Play : Icon.Pause,Icon.Speed };
-            string[] names = { "建造","挖掘","人员","科技","气氛","压力","地层","取样","勘探","电网",ColonyPaused ? "继续" : "暂停","时间流速" };
+            Icon[] icons = { Icon.Build,Icon.Dig,Icon.People,Icon.Research,Icon.Air,Icon.Pressure,Icon.Layers,Icon.Craft,Icon.Storage,Icon.Wire,ColonyPaused ? Icon.Play : Icon.Pause,Icon.Speed };
+            string[] names = { "建造 B","挖掘","人员","科技","气氛","压力","地层","生产","库存","电网",ColonyPaused ? "继续" : "暂停","时间流速" };
             string[] details = { "选择建筑并安排施工","标记需要开挖的地形","查看人员与当前任务","研究技术并解锁设施","查看空气的流动与组成","查看已探明设备的压力","查看已探明区域的边界","从未知区域取得气体样本","确认气氛后揭开区域","允许进入已取样的危险气氛",ColonyPaused ? "继续基地运转" : "暂时停下基地运转",network.simulationSpeed > 1 ? "当前 4 倍，点击恢复正常" : "当前正常，点击加快至 4 倍" };
             bool[] active = { colonyPanel==ColonyPanel.Build,colonyTool==ColonyTool.Dig,colonyPanel==ColonyPanel.Workers,colonyPanel==ColonyPanel.Research,gasRenderer != null && gasRenderer.enabled,overlay == OverlayMode.Pressure,overlay == OverlayMode.Regions,tool == ToolMode.Sample,tool == ToolMode.Explore,overlay==OverlayMode.Power,ColonyPaused,network.simulationSpeed > 1 };
-            details[7]="工程员到探测位置作业，记录成分并获得数据";details[8]="工程员前往区域边界，现场调查并揭开视野";details[9]="E 布置电线，Shift+E 拆线；已完工线路才导电";
-            for (int i = 0; i < 12; i++)
+            active[7]=colonyPanel==ColonyPanel.Craft;active[8]=colonyPanel==ColonyPanel.Resources;
+            details[11]="当前 "+CurrentColonySpeed.ToString("0")+"× · 点击切换 1 / 2 / 4 / 6×";
+            details[7]="C 查看生产设备 · 在具体设备安排配方";details[8]="I 查看材料和生产库存";details[9]="E 布置电线，Shift+E 拆线；已完工线路才导电";
+            for (int i = 1; i < 12; i++)
             {
-                Rect hit = new Rect(dockRect.x+12+i*70,dockRect.y+7,68,58);
+                Rect hit = new Rect(dockRect.x+12+(i-1)*70,dockRect.y+7,68,58);
                 bool hover = hit.Contains(pointer);
                 if (Event.current.type == EventType.Repaint) hoverAmounts[i] = Mathf.MoveTowards(hoverAmounts[i],hover ? 1 : 0,Time.unscaledDeltaTime*8);
                 float amount = hoverAmounts[i];
@@ -117,29 +122,27 @@ namespace DeepPressure
                 DrawIcon(icons[i],new Rect(visual.x+21-amount*.4f,visual.y+5-amount*.4f,26+amount*.8f,26+amount*.8f),tint);
                 Label(new Rect(visual.x,visual.y+33,visual.width,20),names[i],new GUIStyle(small){alignment=TextAnchor.MiddleCenter},tint);
                 if (active[i]) Rounded(new Rect(visual.center.x-2,visual.yMax-5,4,2),WithAlpha(Mint,.85f),1);
-                if (i == 11 && active[i]) Label(new Rect(visual.xMax-12,visual.y+2,10,13),"4",tiny,Mint);
+                if (i == 11) Label(new Rect(visual.xMax-16,visual.y+2,16,13),CurrentColonySpeed.ToString("0"),tiny,Mint);
                 RegisterHover("dock"+i,hit,names[i],details[i]);
                 if (!pauseMenu && Click(hit)) {if(i<4)ActivateColonyTool(i);else ActivateTool(i-4);}
             }
         }
         void ActivateTool(int index)
         {
-            if(index==3||index==4){colonyTool=ColonyTool.None;colonyPanel=ColonyPanel.None;}
+            if(index==3||index==4)colonyTool=ColonyTool.None;
             switch (index)
             {
                 case 0: if (gasRenderer != null) gasRenderer.enabled = !gasRenderer.enabled; break;
                 case 1: overlay = overlay == OverlayMode.Pressure ? OverlayMode.Surface : OverlayMode.Pressure; break;
                 case 2: overlay = overlay == OverlayMode.Regions ? OverlayMode.Surface : OverlayMode.Regions; break;
                 case 3:
-                    tool = tool == ToolMode.Sample ? ToolMode.None : ToolMode.Sample;
-                    if (tool == ToolMode.Sample && HasSelection) ExecuteExploration(false,selectedCell); break;
+                    ToggleProductionPanel();break;
                 case 4:
-                    tool = tool == ToolMode.Explore ? ToolMode.None : ToolMode.Explore;
-                    if (tool == ToolMode.Explore && HasSelection) ExecuteExploration(true,selectedCell); break;
+                    colonyPanel=colonyPanel==ColonyPanel.Resources?ColonyPanel.None:ColonyPanel.Resources;tool=ToolMode.None;break;
                 case 5:
                     ToggleWireTool(false); break;
                 case 6: SetColonyPause(!ColonyPaused); break;
-                case 7: SetColonySpeed(network.simulationSpeed > 1 ? 1 : 4); break;
+                case 7: CycleColonySpeed(); break;
             }
         }
         bool HasSelection => ColonyHasSelection || selectedNode != null || selectedLink != null || world.IsInside(selectedCell);
@@ -156,7 +159,7 @@ namespace DeepPressure
             float height = 166;
             if (selectedNode != null) height = 357;
             else if (selectedLink != null) height = 208;
-            else if (!Visible(selectedCell)) height = HasRecordedSample(selectedCell) ? 310 : 172;
+            else if (!Visible(selectedCell)) height = 140;
             else if (world.GetTerrain(selectedCell.x,selectedCell.y) != TerrainKind.Empty) height = 174;
             else { DeepPressureRoom room = world.RoomAt(selectedCell); height = room != null ? 292 : 154; }
             Vector2 anchor = WorldPoint(selectedNode != null ? selectedNode.transform.position : selectedLink != null && selectedLink.from != null && selectedLink.to != null ? (selectedLink.from.transform.position+selectedLink.to.transform.position)*.5f : world.CellToWorld(selectedCell));
@@ -233,20 +236,7 @@ namespace DeepPressure
         void DrawUnknownCard(float x,ref float y)
         {
             CardTitle(x,ref y,Icon.Explore,"未探明区域");
-            DeepPressureRegion region = world.RegionAt(selectedCell);
-            if (exploration != null && region != null && exploration.TryGetSample(region,out var sample))
-            {
-                PressureValue(x,ref y,sample.pressureKPa,"气体样本");
-                Metric(new Rect(x,y,210,22),Icon.Temperature,sample.temperatureC.ToString("0")+" °C"); y += 29;
-                DrawComposition(x,ref y,GasMixture.FromPressure(100,1,22,sample.composition,sample.reactiveComposition));
-            }
-            else
-            {
-                DrawIcon(Icon.Air,new Rect(x+3,y+2,32,32),WithAlpha(Muted,.5f));
-                Label(new Rect(x+48,y,153,24),"气氛未知",body,White);
-                Label(new Rect(x+48,y+23,153,21),"先取得一份样本",small,Muted); y += 67;
-            }
-            DrawExplorationButtons(x,y);
+            Label(new Rect(x,y,210,30),"人员接近后自然探明",small,Muted);
         }
         void DrawCellCard(float x,ref float y)
         {
@@ -299,18 +289,18 @@ namespace DeepPressure
         }
         void DrawExplorationButtons(float x,float y)
         {
-            if (exploration == null) return;
-            Rect sample = new Rect(x,y,99,29), explore = new Rect(x+111,y,99,29);
-            bool hasSample = HasRecordedSample(selectedCell);
-            ActionButton(sample,Icon.Sample,"取样",false); ActionButton(explore,Icon.Explore,"勘探",hasSample);
-            RegisterHover("sample",sample,"取样","记录气氛，保留迷雾");
-            RegisterHover("explore",explore,"现场调查",hasSample ? "工程员到达可达的区域边界，视野随人员展开" : "先安排工程员取得气体样本");
-            if (Click(sample)) ExecuteExploration(false,selectedCell);
-            if (Click(explore)) ExecuteExploration(true,selectedCell);
+            Label(new Rect(x,y,210,30),"人员接近后自然探明",small,Muted);
         }
         void ActionButton(Rect rect,Icon icon,string text,bool emphasized)
         {
             bool hover = rect.Contains(pointer);
+            rect=ButtonVisual(rect);
+            if(!GUI.enabled)
+            {
+                Rounded(rect,new Color(.085f,.125f,.13f),7);
+                DrawIcon(icon,new Rect(rect.x+12,rect.center.y-8.5f,17,17),WithAlpha(Muted,.55f));
+                Label(new Rect(rect.x+39,rect.y,rect.width-45,rect.height),text,body,WithAlpha(Muted,.65f));return;
+            }
             Rounded(rect,emphasized ? new Color(.13f,.28f,.23f,.9f) : new Color(.12f,.19f,.21f,hover ? 1 : .75f),7);
             DrawIcon(icon,new Rect(rect.x+12,rect.center.y-8.5f,17,17),emphasized || hover ? Mint : Muted);
             Label(new Rect(rect.x+39,rect.y,rect.width-45,rect.height),text,body,emphasized || hover ? White : Muted);
@@ -335,12 +325,12 @@ namespace DeepPressure
             int stop = message.IndexOf('。'); if (stop >= 0) message = message.Substring(0,stop);
             return message.Length <= 40 ? message : message.Substring(0,39)+"…";
         }
-        void ShowToast(string text,bool success) { if(string.IsNullOrEmpty(text))text=success?"已安排":"暂时无法执行";toast = text.Length > 72 ? text.Substring(0,71)+"…" : text; toastSuccess = success; toastTime = Time.unscaledTime; DeepInterfaceFeedback.Play(success); }
+        void ShowToast(string text,bool success) { if(string.IsNullOrEmpty(text))text=success?"已安排":"暂时无法执行";toast = text.Length > 72 ? text.Substring(0,71)+"…" : text; toastSuccess = success; toastTime = Time.unscaledTime;ConfirmControl(success); DeepInterfaceFeedback.Play(success); }
         void DrawToast()
         {
             if (string.IsNullOrEmpty(toast)) return;
             float age = Time.unscaledTime-toastTime; if (age > 3.4f) return;
-            float alpha = Mathf.Clamp01(age*8)*Mathf.Clamp01((3.4f-age)*3);
+            float alpha = Mathf.SmoothStep(0,1,Mathf.Clamp01(age/.18f))*Mathf.SmoothStep(0,1,Mathf.Clamp01((3.4f-age)/.25f));
             float width = Mathf.Clamp(body.CalcSize(new GUIContent(toast)).x+63,165,Mathf.Min(540,uiWidth-40));
             Rect rect = new Rect((uiWidth-width)*.5f,dockRect.y-51+(1-alpha)*5,width,34);
             Rounded(rect,WithAlpha(Panel,alpha),9);
@@ -519,19 +509,19 @@ namespace DeepPressure
         }
         static bool HasChinese(string text) { if (string.IsNullOrEmpty(text)) return false; foreach (char c in text) if (c >= '\u3400' && c <= '\u9fff') return true; return false; }
         void Metric(Rect rect,Icon icon,string text) { DrawIcon(icon,new Rect(rect.x,rect.y+3,17,17),Muted); Label(new Rect(rect.x+27,rect.y,rect.width-27,rect.height),text,body,White); }
-        void Label(Rect rect,string text,GUIStyle style,Color color) { Color previous = GUI.color; GUI.color = color; GUI.Label(rect,text,style); GUI.color = previous; }
-        bool Click(Rect rect) { Event e = Event.current; if ((pauseMenu&&!drawingPauseMenu)||e.type != EventType.MouseDown || e.button != 0 || !rect.Contains(pointer)) return false; e.Use(); return true; }
+        void Label(Rect rect,string text,GUIStyle style,Color color) { Color previous = GUI.color; GUI.color = color*previous; GUI.Label(rect,text,style); GUI.color = previous; }
+        bool Click(Rect rect) { Event e = Event.current; bool clicked=GUI.enabled&&!(pauseMenu&&!drawingPauseMenu)&&e.type==EventType.MouseDown&&e.button==0&&rect.Contains(pointer); ControlFeedback(rect,clicked); if(!clicked)return false; DeepInterfaceFeedback.Play(true); e.Use(); return true; }
         static Rect Inset(Rect rect,float amount) => new Rect(rect.x+amount,rect.y+amount,rect.width-amount*2,rect.height-amount*2);
         static Color WithAlpha(Color color,float alpha) { color.a *= alpha; return color; }
-        static void Fill(Rect rect,Color color) { if (rect.width <= 0 || rect.height <= 0) return; Color previous = GUI.color; GUI.color = color; GUI.DrawTexture(rect,Texture2D.whiteTexture); GUI.color = previous; }
-        static void DrawIcon(Icon icon,Rect rect,Color color) { Color previous = GUI.color; GUI.color = color; GUI.DrawTexture(rect,DeepUIIcons.Get(icon)); GUI.color = previous; }
+        static void Fill(Rect rect,Color color) { if (rect.width <= 0 || rect.height <= 0) return; Color previous = GUI.color; GUI.color = color*previous; GUI.DrawTexture(rect,Texture2D.whiteTexture); GUI.color = previous; }
+        static void DrawIcon(Icon icon,Rect rect,Color color) { Color previous = GUI.color; GUI.color = color*previous; GUI.DrawTexture(rect,DeepUIIcons.Get(icon)); GUI.color = previous; }
         static void Rounded(Rect rect,Color color,float radius)
         {
             if (rect.width <= 0 || rect.height <= 0) return;
             radius = Mathf.Min(radius,Mathf.Min(rect.width,rect.height)*.5f);
             if (radius < .6f) { Fill(rect,color); return; }
             Color previous = GUI.color; GUI.color = Color.white;
-            GUI.DrawTexture(rect,Texture2D.whiteTexture,ScaleMode.StretchToFill,true,0,color,0,radius);
+            GUI.DrawTexture(rect,Texture2D.whiteTexture,ScaleMode.StretchToFill,true,0,color*previous,0,radius);
             GUI.color = previous;
         }
         static void Brackets(Rect rect,Color color,float length)
@@ -539,6 +529,6 @@ namespace DeepPressure
             foreach (float x in new[] { rect.x,rect.xMax-1 }) foreach (float y in new[] { rect.y,rect.yMax-1 })
             { Fill(new Rect(x == rect.x ? x : x-length+1,y,length,1),color); Fill(new Rect(x,y == rect.y ? y : y-length+1,1,length),color); }
         }
-        void OnDestroy() { if (interfaceFont != null) Destroy(interfaceFont); }
+        void OnDestroy() { ReleaseInterfaceSkin();if (interfaceFont != null) Destroy(interfaceFont); }
     }
 }

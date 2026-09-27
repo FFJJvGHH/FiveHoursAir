@@ -43,7 +43,7 @@ namespace DeepPressure
                 FlowButton(new Rect(left,y,300,47),Icon.Build,"开始新基地",true,()=>{
                     // Preserve the current run before resetting it.
                     if(hasEnteredColony&&!session.SaveGame("autosave",out menuMessage))return;
-                    bool ok=session.NewGame(out menuMessage);if(ok){session.paused=true;EnterColony();}
+                    bool ok=session.NewGame(out menuMessage);if(ok){session.paused=false;SetColonySpeed(1);EnterColony();}
                 });y+=60;
                 if(hasEnteredColony||exists)
                 {
@@ -58,7 +58,7 @@ namespace DeepPressure
                 {
                     Rect brief=new Rect(left+350,top+103,550,330);PanelBackground(brief);
                     Label(new Rect(brief.x+28,brief.y+21,480,33),"操作说明",title,White);
-                    string[] lines={"左键选中人物或设施，右键派遣人物。","B 建造 · G 挖掘 · E 电线 · Shift+E 拆线","J 人员 · R 科技 · C 制造 · I 库存","空格暂停，1 / 2 / 3 调速；Esc 返回。","F5 快存 · F9 档案；中键拖动 / 滚轮缩放。","人员视野会自动揭雾，取样需要到场作业。"};
+                    string[] lines={"左键选中人物或设施，右键派遣人物。","底部独立建造格 / B：选择设施并放置。","C 选择生产设备；在具体合成台安排配方。","空格暂停；倍速 1→2→4→6；Esc 返回。","F5 快存 · F9 档案；中键拖动 / 滚轮缩放。","人员接近后自动揭雾，点击空腔查看当地空气。"};
                     for(int i=0;i<lines.Length;i++)Label(new Rect(brief.x+28,brief.y+72+i*37,490,32),lines[i],body,i==0?Mint:Muted);
                 }
             }
@@ -95,11 +95,14 @@ namespace DeepPressure
         }
         void FlowButton(Rect rect,Icon icon,string label,bool enabled,Action action)
         {
+            bool wasEnabled=GUI.enabled;GUI.enabled&=enabled;
             bool primary=label.StartsWith("开始",StringComparison.Ordinal)||label.StartsWith("返回当前",StringComparison.Ordinal);
-            Rounded(rect,primary?new Color(.16f,.34f,.28f):rect.Contains(pointer)&&enabled?new Color(.11f,.19f,.20f):new Color(.06f,.11f,.13f),7);
-            DrawIcon(icon,new Rect(rect.x+15,rect.center.y-10,20,20),enabled?Mint:Muted);
-            Label(new Rect(rect.x+48,rect.y,rect.width-59,rect.height),label,new GUIStyle(body){fontSize=14},enabled?White:Muted);
+            var visual=ButtonVisual(rect);
+            Rounded(visual,primary?new Color(.16f,.34f,.28f):rect.Contains(pointer)&&enabled?new Color(.11f,.19f,.20f):new Color(.06f,.11f,.13f),7);
+            DrawIcon(icon,new Rect(visual.x+15,visual.center.y-10,20,20),enabled?Mint:Muted);
+            Label(new Rect(visual.x+48,visual.y,visual.width-59,visual.height),label,new GUIStyle(body){fontSize=14},enabled?White:Muted);
             if(Click(rect)&&enabled){DeepInterfaceFeedback.Play(true);action();}
+            GUI.enabled=wasEnabled;
         }
         static string TimeLabel(float seconds)=>((int)seconds/60).ToString("00")+":"+((int)seconds%60).ToString("00");
         void SaveQuick(){bool ok=session.SaveGame("quick",out string message);ShowToast(message,ok);}

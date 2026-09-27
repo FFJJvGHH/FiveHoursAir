@@ -74,6 +74,7 @@ namespace DeepPressure
             reactivePixels = new Color32[count];
             visibilityTexture = CreateTexture("DeepPressure Discovery", world.width, world.height);
             revealTexture = CreateTexture("DeepPressure Reveal",world.width,world.height);
+            revealTexture.filterMode = FilterMode.Bilinear;
             compositionTexture = CreateTexture("DeepPressure Gas Fractions", world.width, world.height);
             pressureTexture = CreateTexture("DeepPressure Gas Pressure", world.width, world.height);
             reactiveTexture = CreateTexture("DeepPressure Reactive Gases",world.width,world.height);
