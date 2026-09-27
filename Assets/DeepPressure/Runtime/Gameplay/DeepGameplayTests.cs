@@ -231,6 +231,7 @@ namespace DeepPressure
                 network = root.AddComponent<GasNetworkSimulator>(); network.ResetSimulation();
                 ore = Asset<DeepItemDefinition>(); ore.id = "ore"; alloy = Asset<DeepItemDefinition>(); alloy.id = "alloy";
                 session = root.AddComponent<DeepGameSession>(); session.world = world; session.network = network; session.baseStorageCapacity = 40; session.excavationItem = ore;
+                session.useWiredPower = false; // These worker/order fixtures isolate legacy electricity; DeepPowerTests covers real circuits.
                 session.startingInventory = new[] { new DeepItemAmount(ore,20) };
                 var person = new GameObject("TestWorker"); person.transform.SetParent(root.transform); person.transform.position = new Vector3(1.5f,1,0);
                 worker = person.AddComponent<DeepWorker>(); session.InitializeSession();

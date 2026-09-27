@@ -29,6 +29,11 @@ namespace DeepPressure
         public Vector3 cameraPosition;
         public float cameraSize;
         public int overlay;
+        public int systemsRevision;
+        public bool wiredPower,lifeSupport;
+        public Vector2Int[] wires;
+        public DeepProductionTarget[] production;
+        public float stableAirSeconds;
     }
     [Serializable] public sealed class DeepSaveSlotInfo
     {
@@ -45,6 +50,7 @@ namespace DeepPressure
         public Quaternion rotation;
         public bool isOn,isConstructed,active;
         public float fuelRemainder;
+        public float batteryEnergy,fuelSecondsRemaining;
     }
     [Serializable] public sealed class DeepSavedWorker
     {
@@ -55,6 +61,7 @@ namespace DeepPressure
         public float moveSpeed,workSpeed;
         public int digPreference,buildPreference,researchPreference,craftPreference,pipePreference;
         public bool automationPaused;
+        public float airReserveSeconds=90;
     }
     [Serializable] public sealed class DeepSavedOrder
     {

@@ -35,7 +35,9 @@ Shader "DeepPressure/FogOfWar"
     float3 col=lerp(float3(.006,.012,.021),float3(.023,.039,.051),broad*.7+smoke*.3)*(.86+.14*stratum);
     float distance=4;
     for(int y=-2;y<=2;y++)for(int x=-2;x<=2;x++) {float2 n=floor(p)+float2(x,y)+.5;if(vis(n)<.5)distance=min(distance,length(p-n));}
-    float fringe=1-smoothstep(.35,2.25+smoke*.65,distance);float alpha=known?max(1-smoothstep(0,1,r),fringe*.96):1;
+    // Feather only the immediately adjacent known edge. A two-cell opaque fringe
+    // concealed machinery and workers that were already inside explored cells.
+    float fringe=1-smoothstep(.28,.88+smoke*.2,distance);float alpha=known?max(1-smoothstep(0,1,r),fringe*.55):1;
     // Independent occluding atmosphere. Unknown map pixels never show through.
     col+=float3(.015,.027,.026)*fringe*smoke;
     float elapsed=max(0,t-_ScanStart);float ring=exp(-abs(length(p-_ScanOrigin.xy)-elapsed*8)*4)*exp(-elapsed*.7)*step(.001,_ScanStart);

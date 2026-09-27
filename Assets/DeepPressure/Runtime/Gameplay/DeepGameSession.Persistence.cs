@@ -71,7 +71,9 @@ namespace DeepPressure
                 technologies = new List<string>(technologies).ToArray(),inventory = SaveItems(inventory.Items),displacedGas = world.displacedGas,
                 exploration = exploration == null ? null : exploration.CaptureDiscovery(),
                 hasCamera = camera != null,cameraPosition = camera == null ? Vector3.zero : camera.transform.position,cameraSize = camera == null ? 12 : camera.orthographicSize,
-                overlay = hud == null ? 0 : (int)hud.overlay
+                overlay = hud == null ? 0 : (int)hud.overlay,
+                systemsRevision=1,wiredPower=useWiredPower,lifeSupport=lifeSupportEnabled,wires=completedWireCells.ToArray(),
+                stableAirSeconds=StableAirSeconds,production=productionTargets.ConvertAll(p=>new DeepProductionTarget{recipeId=p.recipeId,targetAmount=p.targetAmount,enabled=p.enabled}).ToArray()
             };
             if (constructedFloorTile != null) savedTilePalette[constructedFloorTile.name] = constructedFloorTile;
             for (int y = 0; y < world.height; y++) for (int x = 0; x < world.width; x++)
@@ -85,7 +87,8 @@ namespace DeepPressure
                 if (building == null) continue;
                 buildingData.Add(new DeepSavedBuilding { id = ObjectId(building,"b"),definitionId = building.definition == null ? null : building.definition.id,
                     name = building.name,origin = building.origin,position = building.transform.position,rotation = building.transform.rotation,scale = building.transform.localScale,
-                    isOn = building.isOn,isConstructed = building.isConstructed,active = building.gameObject.activeSelf,fuelRemainder = building.fuelRemainder });
+                    isOn = building.isOn,isConstructed = building.isConstructed,active = building.gameObject.activeSelf,fuelRemainder = building.fuelRemainder,
+                    batteryEnergy=building.batteryEnergy,fuelSecondsRemaining=building.fuelSecondsRemaining });
             }
             data.buildings = buildingData.ToArray();
             var nodeData = new List<DeepSavedNode>();
@@ -109,7 +112,7 @@ namespace DeepPressure
                 if (worker == null) continue;
                 workerData.Add(new DeepSavedWorker { id = ObjectId(worker,"w"),name = worker.displayName,position = worker.transform.position,path = worker.CapturePath(),currentOrderId = worker.currentOrder == null ? -1 : worker.currentOrder.id,
                     moveSpeed = worker.moveCellsPerSecond,workSpeed = worker.workSpeed,digPreference = worker.digPreference,buildPreference = worker.buildPreference,researchPreference = worker.researchPreference,
-                    craftPreference = worker.craftPreference,pipePreference = worker.pipePreference,automationPaused = worker.automationPaused });
+                    craftPreference = worker.craftPreference,pipePreference = worker.pipePreference,automationPaused = worker.automationPaused,airReserveSeconds=worker.airReserveSeconds });
             }
             data.workers = workerData.ToArray();
             var orderData = new List<DeepSavedOrder>();
@@ -207,6 +210,7 @@ namespace DeepPressure
                 building.name = entry.name; building.definition = definition; building.origin = entry.origin;
                 building.transform.SetPositionAndRotation(entry.position,entry.rotation); building.transform.localScale = entry.scale;
                 building.isOn = entry.isOn; building.isConstructed = entry.isConstructed; building.fuelRemainder = entry.fuelRemainder; building.session = this;
+                building.batteryEnergy=entry.batteryEnergy;building.fuelSecondsRemaining=entry.fuelSecondsRemaining;
                 building.gameObject.SetActive(entry.active); Buildings.Add(building);
             }
             var workers = new Dictionary<string,DeepWorker>(StringComparer.Ordinal);
@@ -217,6 +221,7 @@ namespace DeepPressure
                 worker.moveCellsPerSecond = entry.moveSpeed; worker.workSpeed = entry.workSpeed; worker.RestorePath(entry.path);
                 worker.digPreference = entry.digPreference; worker.buildPreference = entry.buildPreference; worker.researchPreference = entry.researchPreference;
                 worker.craftPreference = entry.craftPreference; worker.pipePreference = entry.pipePreference; worker.automationPaused = entry.automationPaused;
+                worker.airReserveSeconds=data.systemsRevision>0?entry.airReserveSeconds:90;worker.environmentEfficiency=1;
             }
             world.terrainKinds = (TerrainKind[])data.terrain.Clone();
             if (world.terrain != null)
@@ -293,6 +298,13 @@ namespace DeepPressure
             foreach (var entry in data.workers) workers[entry.id].currentOrder = entry.currentOrderId < 0 ? null : orders[entry.currentOrderId];
             inventory.RestoreSavedInventory(data.inventory,held);
             SimulationTime = data.simulationTime; nextOrderId = data.nextOrderId; speed = data.speed; paused = data.paused; defaultOrderPriority = data.defaultOrderPriority;
+            if(data.systemsRevision>0)
+            {
+                useWiredPower=data.wiredPower;lifeSupportEnabled=data.lifeSupport;completedWireCells=new List<Vector2Int>(data.wires??Array.Empty<Vector2Int>());
+                StableAirSeconds=data.stableAirSeconds;productionTargets=new List<DeepProductionTarget>();
+                foreach(var p in data.production??Array.Empty<DeepProductionTarget>())productionTargets.Add(new DeepProductionTarget{recipeId=p.recipeId,targetAmount=p.targetAmount,enabled=p.enabled});
+            }
+            nextProductionCheck=0;InvalidatePowerTopology();
             RebuildOccupancy(); RefreshStorageCapacity(); UpdatePower(0);
             if (network != null)
             {
@@ -305,6 +317,7 @@ namespace DeepPressure
             if (data.hasCamera && camera != null) { camera.transform.position = data.cameraPosition; camera.orthographicSize = data.cameraSize; }
             if (hud != null) hud.overlay = (DeepPressureHUD.OverlayMode)data.overlay;
             menuOpen = menuWasOpen; if (network != null) network.paused = IsSimulationPaused;
+            RefreshExplorationVisibility();
             if (Application.isPlaying) Time.timeScale = IsSimulationPaused ? 0 : speed;
         }
     }

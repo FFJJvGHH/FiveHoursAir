@@ -2,7 +2,7 @@ using UnityEngine;
 
 namespace DeepPressure
 {
-    /// <summary>Animates only editor-baked visual children. Occupancy, ports and the machine root never move.</summary>
+    /// <summary>Only instruments move. Chassis feet, occupancy and connection ports stay fixed.</summary>
     [ExecuteAlways,DisallowMultipleComponent]
     public sealed class DeepMachineMotion:MonoBehaviour
     {
@@ -13,24 +13,47 @@ namespace DeepPressure
         public Vector3 fanRestPosition;
         public Vector3 needleRestPosition;
         GasNetworkSimulator simulator;
-        float fanAngle;
-        void OnEnable(){if(node==null)node=GetComponent<GasNode>();simulator=GetComponentInParent<GasNetworkSimulator>();}
+        DeepBuildingInstance building;
+        DeepGameSession session;
+        float fanAngle,fanSpeed,clock;
+        void OnEnable()
+        {
+            if(node==null)node=GetComponent<GasNode>();
+            simulator=GetComponentInParent<GasNetworkSimulator>();building=GetComponentInParent<DeepBuildingInstance>();
+            session=GetComponentInParent<DeepGameSession>();
+        }
         void OnDisable(){if(housing!=null)housing.localPosition=housingRestPosition;}
         void LateUpdate()
         {
-            if(node==null)return;
-            float flow=(float)(node.lastInflowMolPerSecond+node.lastOutflowMolPerSecond);
-            bool active=Application.isPlaying&&node.isActiveAndEnabled&&flow>.00001f&&(simulator==null||!simulator.paused);
-            float load=Mathf.Clamp01(flow/Mathf.Max(.01f,node.throughputMolPerSecond));
-            if(housing!=null)
-                housing.localPosition=housingRestPosition+(active?new Vector3(Mathf.Sin(Time.time*53)*.0045f,Mathf.Sin(Time.time*37)*.0025f,0):Vector3.zero);
+            if(housing!=null)housing.localPosition=housingRestPosition;
+            if(!Application.isPlaying){RefreshInstruments(false,false);return;}
+            if(session==null&&building!=null)session=building.session;
+            if((session!=null&&session.IsSimulationPaused)||(simulator!=null&&simulator.paused))return;
+            float dt=Time.deltaTime;clock+=dt;
+            float flow=node==null?0:(float)(node.lastInflowMolPerSecond+node.lastOutflowMolPerSecond);
+            bool on=building!=null?building.IsOperational:node!=null&&node.isActiveAndEnabled;
+            bool active=on&&flow>.00001f;
+            float load=Mathf.Clamp01(flow/(node==null?1:Mathf.Max(.01f,node.throughputMolPerSecond)));
+            if(building!=null&&building.definition!=null)
+            {
+                if(building.definition.role==DeepBuildingRole.Generator){active=on;load=on?1:0;}
+                else if(session!=null)foreach(var order in session.Orders)
+                    if(order.targetBuilding==building&&order.state==DeepWorkState.Working){active=on;load=1;break;}
+            }
+            bool fault=building!=null&&building.isOn&&building.isConstructed&&!on;
+            if(node!=null&&node.status!=null)fault|=node.status.StartsWith("Stopped")||node.status.StartsWith("Disabled");
+            fanSpeed=Mathf.MoveTowards(fanSpeed,active?Mathf.Lerp(95,360,load):0,dt*580);
             if(fan!=null)
             {
-                if(active)fanAngle-=Time.deltaTime*(GetComponentInParent<DeepGameSession>()!=null?1:(simulator==null?1:simulator.simulationSpeed))*Mathf.Lerp(100,440,load);
+                fanAngle-=dt*fanSpeed;
                 fan.localRotation=Quaternion.Euler(0,0,fanAngle);
                 fan.localPosition=fanRestPosition;
             }
-            if(pressureNeedle!=null)
+            RefreshInstruments(active,fault);
+        }
+        void RefreshInstruments(bool active,bool fault)
+        {
+            if(pressureNeedle!=null&&node!=null)
             {
                 float pressure=Application.isPlaying?(float)node.PressureKPa:node.initialPressureKPa;
                 pressureNeedle.localRotation=Quaternion.Euler(0,0,Mathf.Lerp(125,-125,Mathf.Clamp01(pressure/Mathf.Max(1,node.maxPressureKPa))));
@@ -38,9 +61,9 @@ namespace DeepPressure
             }
             if(statusLight!=null)
             {
-                bool stopped=node.status!=null&&(node.status.StartsWith("Stopped")||node.status.StartsWith("Disabled"));
-                Color color=stopped?new Color(1,.18f,.09f):active?new Color(.25f,1,.60f):new Color(.85f,.53f,.12f);
-                statusLight.color=color*(active?Mathf.Lerp(.62f,1,(Mathf.Sin(Time.time*7)+1)*.5f):.8f);
+                bool switchedOff=building!=null&&!building.isOn;
+                Color color=switchedOff?new Color(.18f,.25f,.28f):fault?new Color(1,.34f,.13f):active?new Color(.28f,.95f,.68f):new Color(.50f,.63f,.65f);
+                statusLight.color=color*(fault?Mathf.Lerp(.55f,1,(Mathf.Sin(clock*3)+1)*.5f):1);
             }
         }
     }

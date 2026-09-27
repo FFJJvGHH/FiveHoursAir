@@ -11,7 +11,7 @@ namespace DeepPressure
         public GasNetworkSimulator network;
         public Camera viewCamera;
         public SpriteRenderer gasRenderer;
-        public enum OverlayMode { Surface, Gas, Pressure, Regions }
+        public enum OverlayMode { Surface, Gas, Pressure, Regions, Power }
         public OverlayMode overlay;
         enum ToolMode { None, Sample, Explore }
         DeepExploration exploration;
@@ -99,10 +99,11 @@ namespace DeepPressure
         {
             Rounded(new Rect(dockRect.x,dockRect.y+6,dockRect.width,dockRect.height),new Color(0,0,0,.2f),14);
             Rounded(dockRect,Border,14); Rounded(Inset(dockRect,1),Panel,13);
-            Icon[] icons = { Icon.Build,Icon.Dig,Icon.People,Icon.Research,Icon.Air,Icon.Pressure,Icon.Layers,Icon.Sample,Icon.Explore,Icon.Shield,ColonyPaused ? Icon.Play : Icon.Pause,Icon.Speed };
-            string[] names = { "建造","挖掘","人员","科技","气氛","压力","地层","取样","勘探","隔绝装备",ColonyPaused ? "继续" : "暂停","时间流速" };
+            Icon[] icons = { Icon.Build,Icon.Dig,Icon.People,Icon.Research,Icon.Air,Icon.Pressure,Icon.Layers,Icon.Sample,Icon.Explore,Icon.Wire,ColonyPaused ? Icon.Play : Icon.Pause,Icon.Speed };
+            string[] names = { "建造","挖掘","人员","科技","气氛","压力","地层","取样","勘探","电网",ColonyPaused ? "继续" : "暂停","时间流速" };
             string[] details = { "选择建筑并安排施工","标记需要开挖的地形","查看人员与当前任务","研究技术并解锁设施","查看空气的流动与组成","查看已探明设备的压力","查看已探明区域的边界","从未知区域取得气体样本","确认气氛后揭开区域","允许进入已取样的危险气氛",ColonyPaused ? "继续基地运转" : "暂时停下基地运转",network.simulationSpeed > 1 ? "当前 4 倍，点击恢复正常" : "当前正常，点击加快至 4 倍" };
-            bool[] active = { colonyPanel==ColonyPanel.Build,colonyTool==ColonyTool.Dig,colonyPanel==ColonyPanel.Workers,colonyPanel==ColonyPanel.Research,gasRenderer != null && gasRenderer.enabled,overlay == OverlayMode.Pressure,overlay == OverlayMode.Regions,tool == ToolMode.Sample,tool == ToolMode.Explore,exploration != null && exploration.hasIsolationEquipment,ColonyPaused,network.simulationSpeed > 1 };
+            bool[] active = { colonyPanel==ColonyPanel.Build,colonyTool==ColonyTool.Dig,colonyPanel==ColonyPanel.Workers,colonyPanel==ColonyPanel.Research,gasRenderer != null && gasRenderer.enabled,overlay == OverlayMode.Pressure,overlay == OverlayMode.Regions,tool == ToolMode.Sample,tool == ToolMode.Explore,overlay==OverlayMode.Power,ColonyPaused,network.simulationSpeed > 1 };
+            details[7]="工程员到探测位置作业，记录成分并获得数据";details[8]="工程员前往区域边界，现场调查并揭开视野";details[9]="E 布置电线，Shift+E 拆线；已完工线路才导电";
             for (int i = 0; i < 12; i++)
             {
                 Rect hit = new Rect(dockRect.x+12+i*70,dockRect.y+7,68,58);
@@ -135,7 +136,7 @@ namespace DeepPressure
                     tool = tool == ToolMode.Explore ? ToolMode.None : ToolMode.Explore;
                     if (tool == ToolMode.Explore && HasSelection) ExecuteExploration(true,selectedCell); break;
                 case 5:
-                    if (exploration != null) { exploration.hasIsolationEquipment = !exploration.hasIsolationEquipment; ShowToast(exploration.hasIsolationEquipment ? "隔绝勘探已启用（仪器）" : "隔绝勘探已收起",true); } break;
+                    ToggleWireTool(false); break;
                 case 6: SetColonyPause(!ColonyPaused); break;
                 case 7: SetColonySpeed(network.simulationSpeed > 1 ? 1 : 4); break;
             }
@@ -301,7 +302,7 @@ namespace DeepPressure
             bool hasSample = HasRecordedSample(selectedCell);
             ActionButton(sample,Icon.Sample,"取样",false); ActionButton(explore,Icon.Explore,"勘探",hasSample);
             RegisterHover("sample",sample,"取样","记录气氛，保留迷雾");
-            RegisterHover("explore",explore,"勘探",hasSample ? "根据样本与隔绝装备进入区域" : "先取得气体样本");
+            RegisterHover("explore",explore,"现场调查",hasSample ? "工程员到达可达的区域边界，视野随人员展开" : "先安排工程员取得气体样本");
             if (Click(sample)) ExecuteExploration(false,selectedCell);
             if (Click(explore)) ExecuteExploration(true,selectedCell);
         }
@@ -315,9 +316,10 @@ namespace DeepPressure
         void ExecuteExploration(bool explore,Vector2Int cell)
         {
             if (exploration == null || !world.IsInside(cell)) return;
-            string message;
-            bool success = explore ? exploration.TryExplore(cell,out message) : exploration.TrySample(cell,out message);
-            ShowToast(ShortMessage(message,success,explore),success);
+            string message=string.Empty;
+            bool success = session!=null && (explore ? session.RequestSurvey(cell,out message) : session.RequestSample(cell,out message));
+            if(session==null)message="基地尚未就绪";
+            ShowToast(message,success);
         }
         static string ShortMessage(string message,bool success,bool explore)
         {

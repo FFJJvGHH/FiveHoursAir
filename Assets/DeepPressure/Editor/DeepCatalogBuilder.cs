@@ -39,14 +39,15 @@ namespace DeepPressure.Editor
             var alloy=Item(items,"alloy","合金","建筑框架、管道与机械的通用合金。",new Color(.54f,.73f,.79f),TerrainIcon("Metal"));
             var electronics=Item(items,"electronics","电子元件","控制器与仪表使用的标准电子模块。",new Color(.35f,.9f,.76f),Art("Props/console_Color.png"));
             var data=Item(items,"research_data","研究数据","解析电子模块获得的记录；研究时消耗。",new Color(.68f,.59f,.91f),Art("Props/console_Color.png"));
+            var fuel=Item(items,"fuel","燃料块","开采页岩获得的可燃物。发电机持续消耗；矿料压制可补充燃料。",new Color(.91f,.59f,.26f),TerrainIcon("Shale"));
 
             var lamp=Building(buildings,"lamp","工作灯","照明",DeepBuildingRole.Light,new Vector2Int(1,1),Art("Props/vent_Color.png"),null,3,false,false,new[]{Cost(alloy,1),Cost(electronics,1)},
                 "照亮工作区域。需要 1 单位电力，可以单独关闭。",0,1);
             var ladder=Building(buildings,"ladder","梯子","交通",DeepBuildingRole.Ladder,Vector2Int.one,TerrainIcon("Metal"),null,2,false,false,new[]{Cost(alloy,1)},"连接上下通路；需要连续梯段才能攀爬。");
             var floor=Building(buildings,"floor","地板","交通",DeepBuildingRole.Floor,Vector2Int.one,TerrainIcon("Metal"),null,3,false,true,new[]{Cost(ore,2),Cost(alloy,1)},"在空格中建造承重地板，提供站立与施工支撑。");
             var storage=Building(buildings,"storage","仓库","物流",DeepBuildingRole.Storage,new Vector2Int(3,2),Art("Props/crate_Color.png"),null,8,true,false,new[]{Cost(alloy,6)},"提供共享库存容量；输入和成品占用同一有限空间。",0,0,200);
-            var generator=Building(buildings,"generator","地热供电机","动力",DeepBuildingRole.Generator,new Vector2Int(3,3),Art("Industrial/compressor_Color.png"),null,12,true,false,new[]{Cost(alloy,8),Cost(electronics,2)},
-                "与旧站地热母线耦合，提供 20 单位电力；本样机不消耗燃料。",20,0);
+            var generator=Building(buildings,"generator","燃料发电机","动力",DeepBuildingRole.Generator,new Vector2Int(3,3),Art("Industrial/compressor_Color.png"),null,12,true,false,new[]{Cost(alloy,8),Cost(electronics,2)},
+                "提供 20 W；每 45 秒消耗 1 燃料。设备必须通过完工电线连接，空载自动待机。",20,0);
             var desk=Building(buildings,"research_bench","研究台","科研",DeepBuildingRole.Research,new Vector2Int(2,2),Art("Props/console_Color.png"),null,10,true,false,new[]{Cost(alloy,8),Cost(electronics,4)},
                 "工人在此执行研究订单；需要 5 单位电力和足够的研究材料。",0,5);
             var fabricator=Building(buildings,"fabricator","合成台","制造",DeepBuildingRole.Fabricator,new Vector2Int(3,2),Art("Industrial/compressor_Color.png"),null,10,true,false,new[]{Cost(alloy,6),Cost(electronics,2)},
@@ -54,6 +55,13 @@ namespace DeepPressure.Editor
             var tank=Building(buildings,"gas_tank","气体储罐","气体工业",DeepBuildingRole.GasTank,new Vector2Int(2,3),Art("Industrial/tank_Color.png"),"survey_basics",10,true,false,new[]{Cost(alloy,8)},"有限容积的气体缓冲；输入输出需要另接显式管线。");
             var regulator=Building(buildings,"gas_regulator","调压机","气体工业",DeepBuildingRole.GasRegulator,new Vector2Int(2,2),Art("Industrial/compressor_Color.png"),"pressure_engineering",14,true,false,new[]{Cost(alloy,10),Cost(electronics,3)},"限制下游压力；物理输入与输出端口独立配置。",0,2);
             var separator=Building(buildings,"gas_separator","分离塔","气体工业",DeepBuildingRole.GasSeparator,new Vector2Int(3,4),Art("Industrial/separator_Color.png"),"selective_separation",18,true,false,new[]{Cost(alloy,16),Cost(electronics,5)},"双出口组分分离；产品口与尾气口都需要有效接收端。",0,6);
+            var battery=Building(buildings,"battery","蓄电池","动力",DeepBuildingRole.Battery,new Vector2Int(2,2),Art("Props/crate_Color.png"),"power_distribution",10,true,false,new[]{Cost(alloy,8),Cost(electronics,3)},"储存 600 J 电能，最大充放电 20 W。只为同一条电线网络供电，断线后保留剩余电量。");
+            var intake=Building(buildings,"intake_pump","环境集气泵","气体工业",DeepBuildingRole.GasPump,new Vector2Int(2,2),Art("Industrial/compressor_Color.png"),null,10,true,false,new[]{Cost(alloy,6),Cost(electronics,2)},"从所在房间抽取混合气体，降低室内气压。消耗 10 W；出口需要接缓冲罐或处理设备。",0,10);
+            var oxygenTank=Building(buildings,"oxygen_tank","氧气储罐","气体工业",DeepBuildingRole.GasTank,new Vector2Int(2,3),Art("Industrial/tank_Color.png"),"survey_basics",10,true,false,new[]{Cost(alloy,8)},"储存含氧产品，与原气、尾气分开管理。通过供气口给人员所在房间补气；储罐本身不产气。");
+            var wasteTank=Building(buildings,"waste_tank","尾气储罐","气体工业",DeepBuildingRole.GasTank,new Vector2Int(2,3),Art("Industrial/tank_Color.png"),"pressure_engineering",10,true,false,new[]{Cost(alloy,8)},"收集分离尾气或过滤废气。有限容量；满罐会阻塞上游，需要另接排气口处理。");
+            var vent=Building(buildings,"supply_vent","室内供气口","气体工业",DeepBuildingRole.Vent,Vector2Int.one,Art("Props/vent_Color.png"),null,4,false,false,new[]{Cost(alloy,2)},"将管道气体注入所在房间，氧分压达到 21 kPa 或总压达到 135 kPa 后关闭。连接氧气来源，维持人员呼吸。");
+            var exhaust=Building(buildings,"exhaust_vent","尾气排放口","气体工业",DeepBuildingRole.Vent,Vector2Int.one,Art("Props/vent_Color.png"),"pressure_engineering",4,false,false,new[]{Cost(alloy,2)},"把管道尾气排入所在房间。请放置在隔离废气区；不会无条件删除气体。");
+            var scrubber=Building(buildings,"co2_scrubber","二氧化碳收集器","气体工业",DeepBuildingRole.GasPump,new Vector2Int(2,2),Art("Industrial/separator_Color.png"),"pressure_engineering",12,true,false,new[]{Cost(alloy,8),Cost(electronics,3)},"消耗 10 W，从室内选择收集二氧化碳。需要尾气储罐和排放链，不能凭空销毁废气。",0,10);
 
             Tech(technologies,"survey_basics","地下测量","记录洞层与气体样本；解锁第一座气体缓冲罐。",tank.icon,25,Array.Empty<string>(),new[]{Cost(data,4)},new[]{tank.id});
             Tech(technologies,"pressure_engineering","压力工程","在测量基础上控制下游压力，保护供气系统。",regulator.icon,40,new[]{"survey_basics"},new[]{Cost(data,8),Cost(alloy,4)},new[]{regulator.id});
@@ -61,6 +69,7 @@ namespace DeepPressure.Editor
             Recipe(recipes,"smelt_alloy","冶炼合金","将矿料转化为结构材料。",alloy.icon,new[]{Cost(ore,3)},new[]{Cost(alloy,1)},8,fabricator.id);
             Recipe(recipes,"assemble_electronics","组装电子元件","用合金材料组装标准电子模块（架空工艺）。",electronics.icon,new[]{Cost(alloy,2)},new[]{Cost(electronics,1)},12,fabricator.id);
             Recipe(recipes,"compile_research","解析研究数据","消耗电子模块以读取旧站记录。",data.icon,new[]{Cost(electronics,1)},new[]{Cost(data,2)},10,fabricator.id);
+            Recipe(recipes,"press_fuel","压制燃料","从混合矿料中提取可燃组分：8 矿石 → 2 燃料。",fuel.icon,new[]{Cost(ore,8)},new[]{Cost(fuel,2)},12,fabricator.id);
 
             var advancedStorage=Building(buildings,"advanced_storage","分区仓库","物流",DeepBuildingRole.Storage,new Vector2Int(3,2),storage.icon,"colony_planning",12,true,false,new[]{Cost(alloy,10),Cost(electronics,1)},"提供 400 单位共享仓容，缓解采掘与生产堵塞。",0,0,400);
             var improvedGenerator=Building(buildings,"improved_generator","高效地热机","动力",DeepBuildingRole.Generator,new Vector2Int(3,3),generator.icon,"power_distribution",20,true,false,new[]{Cost(alloy,16),Cost(electronics,5)},"提供 45 单位电力，支持制造、研究与分离设备同时运行。",45,0);
@@ -95,6 +104,26 @@ namespace DeepPressure.Editor
                 catalog.contentRevision=2;
             }
 
+            if(catalog.contentRevision<3)
+            {
+                generator.displayName="燃料发电机";generator.description="提供 20 W；每 45 秒消耗 1 燃料。连接完工电线才能供电，空载自动待机。";
+                generator.fuelItem=fuel;generator.fuelUnitsPerSecond=1f/45;
+                improvedGenerator.displayName="高效燃料机";improvedGenerator.description="提供 45 W；每 75 秒消耗 1 燃料。连接电池储存富余电量。";improvedGenerator.fuelItem=fuel;improvedGenerator.fuelUnitsPerSecond=1f/75;
+                battery.batteryCapacity=600;battery.batteryTransferRate=20;battery.ports=new[]{Port("power_in","电网",DeepPortKind.PowerIn,new Vector2(.25f,.15f))};
+                tank.displayName="原气缓冲罐";tank.description="有限容积的混合气体缓冲，不产气、不供氧。先接环境集气泵，再接分离或供气设施。";
+                ConfigureGas(intake,DeepGasFacilityMode.Collect,DeepGasAcceptance.Any,true,4);
+                ConfigureGas(vent,DeepGasFacilityMode.Supply,DeepGasAcceptance.Oxygen,true,3);
+                ConfigureGas(exhaust,DeepGasFacilityMode.Exhaust,DeepGasAcceptance.Waste,true,4);
+                ConfigureGas(scrubber,DeepGasFacilityMode.Scrub,DeepGasAcceptance.Waste,true,2);
+                ConfigureGas(oxygenTank,DeepGasFacilityMode.Storage,DeepGasAcceptance.Oxygen,false,0);
+                ConfigureGas(wasteTank,DeepGasFacilityMode.Storage,DeepGasAcceptance.Waste,false,0);
+                foreach(var definition in new[]{generator,improvedGenerator,battery,tank,intake,vent,exhaust,scrubber,oxygenTank,wasteTank})EditorUtility.SetDirty(definition);
+                var powerTech=technologies.First(x=>x.id=="power_distribution");powerTech.unlockBuildingIds=new[]{improvedGenerator.id,battery.id};powerTech.description="提高燃料利用效率并解锁蓄电池，在同一电线网络中缓冲负载。";EditorUtility.SetDirty(powerTech);
+                var surveyTech=technologies.First(x=>x.id=="survey_basics");surveyTech.unlockBuildingIds=new[]{tank.id,oxygenTank.id};EditorUtility.SetDirty(surveyTech);
+                var pressureTech=technologies.First(x=>x.id=="pressure_engineering");pressureTech.unlockBuildingIds=new[]{regulator.id,wasteTank.id,exhaust.id,scrubber.id};EditorUtility.SetDirty(pressureTech);
+                catalog.contentRevision=3;
+            }
+
             catalog.items=items.Where(x=>x!=null).Distinct().ToArray();
             catalog.buildings=buildings.Where(x=>x!=null).Distinct().ToArray();
             catalog.technologies=technologies.Where(x=>x!=null).Distinct().ToArray();
@@ -106,6 +135,16 @@ namespace DeepPressure.Editor
         }
 
         static DeepItemAmount Cost(DeepItemDefinition item,int amount)=>new DeepItemAmount(item,amount);
+        static void ConfigureGas(DeepBuildingDefinition definition,DeepGasFacilityMode mode,DeepGasAcceptance acceptance,bool exchange,float rate)
+        {
+            definition.gasMode=mode;definition.gasAcceptance=acceptance;definition.exchangesRoomGas=exchange;definition.gasTransferMolPerSecond=rate;
+            bool outlet=mode==DeepGasFacilityMode.Supply||mode==DeepGasFacilityMode.Exhaust;
+            var ports=new List<DeepBuildingPort>();
+            if(mode==DeepGasFacilityMode.Storage||outlet)ports.Add(Port("gas_in","进气",DeepPortKind.GasIn,new Vector2(.15f,.5f)));
+            if(!outlet)ports.Add(Port("gas_out","出气",DeepPortKind.GasOut,new Vector2(definition.footprint.x-.15f,.5f)));
+            if(definition.powerRequired>0)ports.Add(Port("power_in","用电",DeepPortKind.PowerIn,new Vector2(.25f,.15f)));
+            definition.ports=ports.ToArray();definition.gasStorageVolume=mode==DeepGasFacilityMode.Storage?8:2;
+        }
         static T LoadOrCreate<T>(string path,out bool created) where T:ScriptableObject
         {
             var asset=AssetDatabase.LoadAssetAtPath<T>(path);created=asset==null;
@@ -226,7 +265,7 @@ namespace DeepPressure.Editor
                 var constructed=data.FindProperty("isConstructed");if(constructed!=null)constructed.boolValue=true;
                 var isOn=data.FindProperty("isOn");if(isOn!=null)isOn.boolValue=true;
                 AssignArray(data.FindProperty("lights"),lights.Cast<UnityEngine.Object>().ToArray());AssignArray(data.FindProperty("glowRenderers"),glows.Cast<UnityEngine.Object>().ToArray());data.ApplyModifiedPropertiesWithoutUndo();
-                if(definition.role==DeepBuildingRole.GasTank||definition.role==DeepBuildingRole.GasRegulator||definition.role==DeepBuildingRole.GasSeparator)
+                if(definition.role==DeepBuildingRole.GasTank||definition.role==DeepBuildingRole.GasRegulator||definition.role==DeepBuildingRole.GasSeparator||definition.role==DeepBuildingRole.Vent||definition.role==DeepBuildingRole.GasPump)
                 {
                     var node=root.AddComponent<GasNode>();node.displayName=definition.displayName;node.kind=definition.role==DeepBuildingRole.GasRegulator?GasNodeKind.Regulator:definition.role==DeepBuildingRole.GasSeparator?GasNodeKind.Separator:GasNodeKind.Storage;
                     node.volumeM3=definition.role==DeepBuildingRole.GasTank?definition.gasStorageVolume:2;node.initialPressureKPa=0;node.maxPressureKPa=600;node.targetPressureKPa=160;

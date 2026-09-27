@@ -21,7 +21,13 @@ namespace DeepPressure
                 RequireSave(SaveFinite(data.networkElapsed) && data.networkElapsed >= 0 && data.networkSteps >= 0 && SaveFinite(data.networkRemainder) && data.networkRemainder >= 0,"气体时钟数据无效");
                 RequireSave(network == null || SaveFinite(data.networkStepSeconds) && data.networkStepSeconds >= .01f && data.networkStepSeconds <= .5f,"气体步长无效");
                 RequireSave(data.displacedGas.IsFiniteAndNonnegative,"排挤气体数据无效");
-                RequireSave(data.defaultOrderPriority >= 1 && data.defaultOrderPriority <= 9 && data.overlay >= 0 && data.overlay <= 3,"操作设置无效");
+                RequireSave(data.defaultOrderPriority >= 1 && data.defaultOrderPriority <= 9 && data.overlay >= 0 && data.overlay <= 4,"操作设置无效");
+                if(data.systemsRevision>0)
+                {
+                    RequireSave(data.wires!=null&&data.production!=null&&SaveFinite(data.stableAirSeconds)&&data.stableAirSeconds>=0,"电网或生产数据缺失");
+                    var cells=new HashSet<Vector2Int>();foreach(var cell in data.wires)RequireSave(world.IsInside(cell)&&cells.Add(cell),"电线格重复或越界");
+                    var recipes=new HashSet<string>();foreach(var p in data.production)RequireSave(p!=null&&catalog.FindRecipe(p.recipeId)!=null&&recipes.Add(p.recipeId)&&p.targetAmount>0&&p.targetAmount<=999,"生产目标无效");
+                }
                 RequireSave(!data.hasCamera || SaveFinite(data.cameraPosition) && SaveFinite(data.cameraSize) && data.cameraSize > 0 && data.cameraSize <= 200,"镜头数据无效");
                 ValidateSavedItems(data.inventory);
                 var unlocked = new HashSet<string>(StringComparer.Ordinal);
@@ -35,6 +41,7 @@ namespace DeepPressure
                     RequireSave(world.IsInside(entry.origin) && world.IsInside(entry.origin+definition.footprint-Vector2Int.one),"建筑位置超出地图");
                     RequireSave(SaveFinite(entry.position) && SaveFinite(entry.scale) && SaveFinite(entry.rotation.x) && SaveFinite(entry.rotation.y) && SaveFinite(entry.rotation.z) && SaveFinite(entry.rotation.w) && SaveFinite(entry.fuelRemainder) && entry.fuelRemainder >= 0,"建筑状态无效");
                     savedBuildings.Add(entry.id,entry);
+                    RequireSave(SaveFinite(entry.batteryEnergy)&&entry.batteryEnergy>=0&&entry.batteryEnergy<=definition.batteryCapacity+.01f&&SaveFinite(entry.fuelSecondsRemaining)&&entry.fuelSecondsRemaining>=0,"电池或燃料状态无效");
                 }
                 var currentNodes = new Dictionary<string,GasNode>(); foreach (var node in world.GetComponentsInChildren<GasNode>(true)) currentNodes[ObjectId(node,"n")] = node;
                 var nodeIds = new HashSet<string>(StringComparer.Ordinal);
@@ -71,6 +78,7 @@ namespace DeepPressure
                     foreach (int preference in new[] { entry.digPreference,entry.buildPreference,entry.researchPreference,entry.craftPreference,entry.pipePreference }) RequireSave(preference >= 0 && preference <= 3,"工人优先级无效");
                     RequireSave(entry.path != null,"工人路线缺失"); foreach (var cell in entry.path) RequireSave(world.IsInside(cell),"工人路线超出地图");
                     savedWorkers.Add(entry.id,entry);
+                    RequireSave(SaveFinite(entry.airReserveSeconds)&&entry.airReserveSeconds>=0&&entry.airReserveSeconds<=90,"工人气氛缓冲状态无效");
                 }
                 var orderIds = new HashSet<int>(); var savedOrders = new Dictionary<int,DeepSavedOrder>(); long held = 0;
                 foreach (var entry in data.orders)

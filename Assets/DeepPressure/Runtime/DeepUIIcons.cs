@@ -6,7 +6,7 @@ namespace DeepPressure
     /// <summary>Small, anti-aliased geometric interface symbols. No font glyphs or external icon dependencies.</summary>
     public static class DeepUIIcons
     {
-        public enum Icon { Mark, Air, Pressure, Layers, Sample, Explore, Shield, Pause, Play, Speed, Close, Temperature, Volume, Flow, Valve, Check, Warning, Drop, Build, Dig, People, Person, Research, Lock, Material, Power, Storage, Craft, Settings, Home, Lamp }
+        public enum Icon { Mark, Air, Pressure, Layers, Sample, Explore, Shield, Pause, Play, Speed, Close, Temperature, Volume, Flow, Valve, Check, Warning, Drop, Build, Dig, People, Person, Research, Lock, Material, Power, Storage, Craft, Settings, Home, Lamp, Wire, Battery, Pump, OxygenTank, WasteTank, Vent, Filter }
         static readonly Dictionary<Icon, Texture2D> Icons = new Dictionary<Icon, Texture2D>();
         static Texture2D rounded;
         public static Texture2D Rounded
@@ -118,6 +118,20 @@ namespace DeepPressure
                     c.Path(3,new Vector2(9,33),new Vector2(32,53),new Vector2(55,33));c.Path(3,new Vector2(16,34),new Vector2(16,12),new Vector2(48,12),new Vector2(48,34));c.Path(3,new Vector2(27,12),new Vector2(27,28),new Vector2(37,28),new Vector2(37,12));break;
                 case Icon.Lamp:
                     c.Arc(32,38,15,-30,210);c.Path(3,new Vector2(19,30),new Vector2(25,20),new Vector2(39,20),new Vector2(45,30));c.Line(25,14,39,14);c.Line(32,57,32,62,2);c.Line(10,44,5,46,2);c.Line(54,44,59,46,2);break;
+                case Icon.Wire:
+                    c.Path(4,new Vector2(10,17),new Vector2(22,17),new Vector2(22,44),new Vector2(43,44),new Vector2(43,31));c.Line(36,31,50,31,5);c.Line(38,22,38,30,3);c.Line(48,22,48,30,3);c.Circle(10,17,4,3);break;
+                case Icon.Battery:
+                    c.Path(3,new Vector2(12,18),new Vector2(49,18),new Vector2(49,46),new Vector2(12,46),new Vector2(12,18));c.Line(53,27,53,37,4);c.Line(20,25,20,39,5);c.Line(29,25,29,39,5);c.Line(38,25,38,39,5);break;
+                case Icon.Pump:
+                    c.Circle(32,30,17,3);c.Disk(32,30,4);for(int i=0;i<3;i++){float a=i*Mathf.PI*2/3;c.Line(32,30,32+Mathf.Cos(a)*13,30+Mathf.Sin(a)*13,4);}c.Path(4,new Vector2(5,30),new Vector2(15,30));c.Path(4,new Vector2(49,30),new Vector2(58,30),new Vector2(58,47));c.Line(18,9,46,9,4);break;
+                case Icon.OxygenTank:
+                case Icon.WasteTank:
+                    c.Arc(32,44,15,0,180,3);c.Line(17,44,17,15,3);c.Line(47,44,47,15,3);c.Arc(32,15,15,180,360,3);c.Line(27,59,37,59,3);c.Line(32,59,32,54,3);
+                    if(icon==Icon.OxygenTank){c.Circle(32,31,8,3);c.Disk(32,31,2);}else{c.Path(3,new Vector2(24,24),new Vector2(40,40));c.Path(3,new Vector2(24,40),new Vector2(40,24));}break;
+                case Icon.Vent:
+                    c.Path(3,new Vector2(12,16),new Vector2(52,16),new Vector2(52,48),new Vector2(12,48),new Vector2(12,16));for(int y=23;y<=41;y+=9)c.Line(18,y,46,y,3);break;
+                case Icon.Filter:
+                    c.Path(3,new Vector2(9,50),new Vector2(55,50),new Vector2(37,30),new Vector2(37,12),new Vector2(27,17),new Vector2(27,30),new Vector2(9,50));c.Line(16,43,48,43,2);c.Disk(32,37,2);break;
             }
             result = Texture(c.pixels,64,"Deep Pressure icon " + icon); Icons[icon] = result; return result;
         }

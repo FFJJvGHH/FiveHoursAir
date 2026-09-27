@@ -107,6 +107,7 @@ namespace DeepPressure
                     if (building.definition.role == DeepBuildingRole.Ladder) ladderCells.Add(cell);
                 }
             }
+            InvalidatePowerTopology();
         }
         public bool IsLadder(Vector2Int cell)
         {
@@ -144,6 +145,7 @@ namespace DeepPressure
         }
         void UpdatePower(float dt)
         {
+            if(useWiredPower){UpdateWiredPower(dt);return;}
             PowerProduction = PowerDemand = 0;
             foreach (var building in Buildings)
             {

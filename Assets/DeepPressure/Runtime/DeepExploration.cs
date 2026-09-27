@@ -268,7 +268,7 @@ namespace DeepPressure
                 compositionPixels[index] = (Color32)new Color((float)(room.gas.oxygen / total), (float)(room.gas.nitrogen / total), (float)(room.gas.carbonDioxide / total), (float)(room.gas.waterVapour / total));
                 int floorDistance=0;
                 while(floorDistance<8&&world.GetTerrain(x,y-floorDistance-1)==TerrainKind.Empty)floorDistance++;
-                pressurePixels[index] = (Color32)new Color(Mathf.Clamp01((float)room.PressureKPa / Mathf.Max(1, visualPressureScaleKPa)), 1, (floorDistance+.5f)/8, 1);
+                pressurePixels[index] = (Color32)new Color(Mathf.Clamp01((float)room.PressureKPa / Mathf.Max(1, visualPressureScaleKPa)), 1, (floorDistance+.5f)/8, Mathf.Clamp01(((float)room.temperatureC+20)/120));
             }
             compositionTexture.SetPixels32(compositionPixels); compositionTexture.Apply(false, false);
             pressureTexture.SetPixels32(pressurePixels); pressureTexture.Apply(false, false);

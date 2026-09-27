@@ -17,7 +17,7 @@ namespace DeepPressure
             BranchOrder(); passed.Add("branch order invariance");
             ReverseFlow(); passed.Add("directed valve / explicit reverse flow");
             SeparatorInterlock(); passed.Add("separator purity / full-outlet interlock");
-            ExplorationSequence(); passed.Add("sample-before-explore / fog / hazards / isolated equipment / probe range");
+            ExplorationSequence(); passed.Add("sample-before-entry / measured fog memory / hazards / no remote equipment reveal / probe range");
             return "Deep Pressure: " + passed.Count + " self-test groups passed.\n" + string.Join("\n",passed);
         }
         static void ExplorationSequence()
@@ -42,11 +42,11 @@ namespace DeepPressure
                 Assert(exploration.TrySample(safeCell,out string message),message);
                 Assert(exploration.IsSampled(safe) && !exploration.IsVisible(safeCell),"Sampling records knowledge without revealing terrain.");
                 Assert(exploration.TryGetSample(safe,out var sample) && Math.Abs(sample.pressureKPa-100) < 1e-3,"Sample records measured atmosphere.");
-                Assert(exploration.TryExplore(safeCell,out message) && exploration.IsVisible(safeCell),"Sampled safe region can be explored: "+message);
+                Assert(exploration.TryExplore(safeCell,out message) && !exploration.IsVisible(safeCell),"Safe measurement permits entry but never remotely reveals terrain: "+message);
                 Assert(exploration.TrySample(hazardCell,out message),message);
                 Assert(!exploration.TryExplore(hazardCell,out _),"High-pressure region needs isolation equipment.");
                 exploration.hasIsolationEquipment = true;
-                Assert(exploration.TryExplore(hazardCell,out message) && exploration.IsVisible(hazardCell),"Equipment permits sampled hazardous region: "+message);
+                Assert(!exploration.TryExplore(hazardCell,out _) && !exploration.IsVisible(hazardCell),"Legacy equipment switch cannot bypass hazardous atmosphere or reveal sealed terrain.");
                 Assert(!exploration.TrySample(new Vector2Int(28,1),out _),"Remote sampling respects drill reach.");
             }
             finally { UnityEngine.Object.DestroyImmediate(root); }

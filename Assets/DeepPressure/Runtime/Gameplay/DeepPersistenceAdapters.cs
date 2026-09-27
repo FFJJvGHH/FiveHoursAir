@@ -38,6 +38,7 @@ namespace DeepPressure
             Initialize(); if (!initialized || data == null) return;
             if (data.visible == null || data.visible.Length != visible.Length) throw new InvalidOperationException("探索数据尺寸与关卡不匹配");
             visible = (bool[])data.visible.Clone(); hasIsolationEquipment = data.hasIsolationEquipment;
+            ResetProximityCache();
             states.Clear(); samples.Clear();
             foreach (var region in world.GetComponentsInChildren<DeepPressureRegion>(true))
                 foreach (var entry in data.regions)
