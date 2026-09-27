@@ -1,0 +1,54 @@
+{
+  "asset": "separator",
+  "imageSize": [
+    512,
+    512
+  ],
+  "orthographicSizeWorld": 5.5,
+  "pixelsPerBlenderUnit": 93.0909090909091,
+  "unitySpritePivotNormalized": [
+    0.5,
+    0.111839
+  ],
+  "pivotConvention": "Unity normalized sprite coordinates: bottom-left (0,0), top-right (1,1)",
+  "normalConvention": "X right; Y up; Z toward viewer. Raw RGB = normal * 0.5 + 0.5.",
+  "ports": [
+    {
+      "name": "RAW_GAS_INLET_ANCHOR",
+      "worldPosition": [
+        -1.6129999160766602,
+        0.0,
+        1.2999999523162842
+      ],
+      "spritePositionNormalized": [
+        0.206727,
+        0.343311
+      ]
+    },
+    {
+      "name": "PRODUCT_OUTLET_ANCHOR",
+      "worldPosition": [
+        1.6129999160766602,
+        0.0,
+        3.25
+      ],
+      "spritePositionNormalized": [
+        0.793273,
+        0.690519
+      ]
+    },
+    {
+      "name": "WASTE_OUTLET_ANCHOR",
+      "worldPosition": [
+        1.6129999160766602,
+        0.0,
+        1.2999999523162842
+      ],
+      "spritePositionNormalized": [
+        0.793273,
+        0.343311
+      ]
+    }
+  ],
+  "gameplayNote": "Visual port coordinates only. Define occupancy and gas network ports separately in building data."
+}

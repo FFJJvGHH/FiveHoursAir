@@ -1,0 +1,36 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 4ab9fb3ab5bf21f4990e678bf0f19a77, type: 3}
+  m_Name: Sandstone
+  m_EditorClassIdentifier: 
+  kind: 2
+  variants:
+  - {fileID: 21300000, guid: 5621e3889ffc38448b171f3995de0af7, type: 3}
+  - {fileID: 21300000, guid: 6bbd15d6d0c40ee4f80a28716979c2c6, type: 3}
+  - {fileID: 21300000, guid: ad507e23af2ab2e41ac57c3ee32a2c5f, type: 3}
+  - {fileID: 21300000, guid: fcb72eb8990b8294fa8ab3029f87817a, type: 3}
+  - {fileID: 21300000, guid: d4b8e72c274152d468c3a169192f8f88, type: 3}
+  - {fileID: 21300000, guid: f5f07fecba7eb5d4e94b1879755f8419, type: 3}
+  - {fileID: 21300000, guid: f3eb6b5e64461204cbedafd25dc82b67, type: 3}
+  - {fileID: 21300000, guid: ba50b569135fe72498c2f93ec6d560b7, type: 3}
+  - {fileID: 21300000, guid: 53f726cb591abb543af5622de8f6fbf5, type: 3}
+  - {fileID: 21300000, guid: 257cd4c3b7b13734892a509fcd0b3363, type: 3}
+  - {fileID: 21300000, guid: 9351b8dd28179a64d9d5f339bf5aed97, type: 3}
+  - {fileID: 21300000, guid: 696e4ab0f6888e64cb6e5731b2916a85, type: 3}
+  - {fileID: 21300000, guid: 40f62aa7856b24d44ab6950e1763ec5f, type: 3}
+  - {fileID: 21300000, guid: 3326e9690ee37704a8c1024280338207, type: 3}
+  - {fileID: 21300000, guid: 57bddda580e99bb4b9e2205392431bb0, type: 3}
+  - {fileID: 21300000, guid: 2fccf2f72f743064a899db0a93f21b1a, type: 3}
+  densityKgM3: 2200
+  excavationResistance: 3
+  porosity: 0.22
+  permeability: 0.65

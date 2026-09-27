@@ -1,0 +1,28 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: ddc6c87997088894190d55c6d98f2968, type: 3}
+  m_Name: assemble_electronics_batch
+  m_EditorClassIdentifier: 
+  id: assemble_electronics_batch
+  displayName: "\u6A21\u5757\u5316\u88C5\u914D"
+  description: "\u6279\u91CF\u88C5\u914D\u964D\u4F4E\u635F\u8017\uFF1A5 \u5408\u91D1
+    \u2192 3 \u7535\u5B50\u5143\u4EF6\u3002"
+  icon: {fileID: 21300000, guid: 5906e8cc211a95a43bfc12b35405fe5d, type: 3}
+  inputs:
+  - item: {fileID: 11400000, guid: 15f167b5d4ca87f4393592342aad76b8, type: 2}
+    amount: 5
+  outputs:
+  - item: {fileID: 11400000, guid: d0962528e982fe748b8d7f0f945de416, type: 2}
+    amount: 3
+  workSeconds: 24
+  requiredBuildingId: fabricator
+  requiredTechId: advanced_fabrication

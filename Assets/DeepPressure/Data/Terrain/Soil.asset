@@ -1,0 +1,36 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 4ab9fb3ab5bf21f4990e678bf0f19a77, type: 3}
+  m_Name: Soil
+  m_EditorClassIdentifier: 
+  kind: 1
+  variants:
+  - {fileID: 21300000, guid: 8db161c280108824086d3dd43c0cc576, type: 3}
+  - {fileID: 21300000, guid: b023929a2a7aec443811808ae9531959, type: 3}
+  - {fileID: 21300000, guid: 756937a7281c33940aef95353c131df0, type: 3}
+  - {fileID: 21300000, guid: 6e0fcd6005832484da780473d264338a, type: 3}
+  - {fileID: 21300000, guid: fdcaba04aa3fc7c4bac8d325cd11f429, type: 3}
+  - {fileID: 21300000, guid: bc5ef522b4871c7419465e12be48cf08, type: 3}
+  - {fileID: 21300000, guid: ec6dc6a6f3e5fd5448285dcee02fb6da, type: 3}
+  - {fileID: 21300000, guid: 168895aa2f294c0459f889af7f2c6657, type: 3}
+  - {fileID: 21300000, guid: 55fd390e3b37291458f870dcfcd56d2a, type: 3}
+  - {fileID: 21300000, guid: 90cbfdaef21e58e4b8ca9d4c8eedc874, type: 3}
+  - {fileID: 21300000, guid: f596d3bc8bd7d394986ea3a5d5ffdbc9, type: 3}
+  - {fileID: 21300000, guid: 76de202c1cea62746a39e2678e7ed228, type: 3}
+  - {fileID: 21300000, guid: 5c528cea11f965f4795be95e3a932e03, type: 3}
+  - {fileID: 21300000, guid: 486fb1bd05b48e841b81efb6b5dffa00, type: 3}
+  - {fileID: 21300000, guid: c412e35cb1ec4f5479a90b740114d01a, type: 3}
+  - {fileID: 21300000, guid: 4fb551c1fce7eac4a898060d7f1b6ec5, type: 3}
+  densityKgM3: 1500
+  excavationResistance: 1
+  porosity: 0.35
+  permeability: 0.3

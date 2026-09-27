@@ -1,0 +1,38 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 6c73d5aa9d8782e46a76fc0855dcb0a9, type: 3}
+  m_Name: deep_storage
+  m_EditorClassIdentifier: 
+  id: deep_storage
+  displayName: "\u6DF1\u5C42\u7269\u8D44\u5E93"
+  category: "\u7269\u6D41"
+  description: "\u63D0\u4F9B 1000 \u5355\u4F4D\u5171\u4EAB\u4ED3\u5BB9\uFF0C\u4E3A\u8FDE\u7EED\u5DE5\u4E1A\u751F\u4EA7\u5EFA\u7ACB\u50A8\u5907\u3002"
+  icon: {fileID: 21300000, guid: b0dec3ad43aa38340ae5fba2d421f104, type: 3}
+  prefab: {fileID: 1733702689934642417, guid: 8f2ef54044ee38747842dfc1f70fa387, type: 3}
+  footprint: {x: 4, y: 3}
+  workSeconds: 24
+  requiresFloor: 1
+  blocksMovement: 0
+  role: 8
+  requiredTechId: deep_support
+  cost:
+  - item: {fileID: 11400000, guid: 15f167b5d4ca87f4393592342aad76b8, type: 2}
+    amount: 22
+  - item: {fileID: 11400000, guid: d0962528e982fe748b8d7f0f945de416, type: 2}
+    amount: 4
+  powerGenerated: 0
+  powerRequired: 0
+  fuelItem: {fileID: 0}
+  fuelUnitsPerSecond: 0
+  storageCapacity: 1000
+  gasStorageVolume: 8
+  ports: []

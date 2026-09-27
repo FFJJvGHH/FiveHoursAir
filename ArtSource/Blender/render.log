@@ -1,0 +1,37 @@
+D:\Gamejam\FiveHours\2026927\My project (2)\Tools\Blender\build_industrial_assets.py:43: DeprecationWarning: 'Material.use_nodes' is expected to be removed in Blender 6.0
+  mat.use_nodes = True
+00:05.891  render           | Saved: 'D:\Gamejam\FiveHours\2026927\My project (2)\ArtSource\Blender\Rendered\compressor_Color.png'
+ASSET_RENDERED compressor Color: D:\Gamejam\FiveHours\2026927\My project (2)\ArtSource\Blender\Rendered\compressor_Color.png
+00:07.516  render           | Saved: 'D:\Gamejam\FiveHours\2026927\My project (2)\ArtSource\Blender\Rendered\compressor_Normal.png'
+ASSET_RENDERED compressor Normal: D:\Gamejam\FiveHours\2026927\My project (2)\ArtSource\Blender\Rendered\compressor_Normal.png
+00:14.719  render           | Saved: 'D:\Gamejam\FiveHours\2026927\My project (2)\ArtSource\Blender\Rendered\compressor_AO.png'
+ASSET_RENDERED compressor AO: D:\Gamejam\FiveHours\2026927\My project (2)\ArtSource\Blender\Rendered\compressor_AO.png
+00:22.469  render           | Saved: 'D:\Gamejam\FiveHours\2026927\My project (2)\ArtSource\Blender\Rendered\compressor_Preview.png'
+ASSET_RENDERED compressor Preview: D:\Gamejam\FiveHours\2026927\My project (2)\ArtSource\Blender\Rendered\compressor_Preview.png
+00:22.485  reports          | WARNING Path 'C:\Program Files\Blender Foundation\Blender 5.2\5.2\datafiles\assets\brushes\essentials_brushes-gp_draw.blend' cannot be made relative for Material 'Dots Stroke'
+Blender 5.2.1 LTS (hash 9e2066aef7ef built 2026-08-25 02:38:20)
+00:22.485  reports          | WARNING Path 'C:\Program Files\Blender Foundation\Blender 5.2\5.2\datafiles\assets\brushes\essentials_brushes-gp_draw.blend' cannot be made relative for Material 'Material'
+Info: Saved as "compressor.blend"
+ASSET_COMPLETE compressor
+00:24.672  render           | Saved: 'D:\Gamejam\FiveHours\2026927\My project (2)\ArtSource\Blender\Rendered\separator_Color.png'
+ASSET_RENDERED separator Color: D:\Gamejam\FiveHours\2026927\My project (2)\ArtSource\Blender\Rendered\separator_Color.png
+00:25.907  render           | Saved: 'D:\Gamejam\FiveHours\2026927\My project (2)\ArtSource\Blender\Rendered\separator_Normal.png'
+ASSET_RENDERED separator Normal: D:\Gamejam\FiveHours\2026927\My project (2)\ArtSource\Blender\Rendered\separator_Normal.png
+00:33.829  render           | Saved: 'D:\Gamejam\FiveHours\2026927\My project (2)\ArtSource\Blender\Rendered\separator_AO.png'
+ASSET_RENDERED separator AO: D:\Gamejam\FiveHours\2026927\My project (2)\ArtSource\Blender\Rendered\separator_AO.png
+00:45.391  render           | Saved: 'D:\Gamejam\FiveHours\2026927\My project (2)\ArtSource\Blender\Rendered\separator_Preview.png'
+ASSET_RENDERED separator Preview: D:\Gamejam\FiveHours\2026927\My project (2)\ArtSource\Blender\Rendered\separator_Preview.png
+Info: Saved as "separator.blend"
+ASSET_COMPLETE separator
+00:47.704  render           | Saved: 'D:\Gamejam\FiveHours\2026927\My project (2)\ArtSource\Blender\Rendered\tank_Color.png'
+ASSET_RENDERED tank Color: D:\Gamejam\FiveHours\2026927\My project (2)\ArtSource\Blender\Rendered\tank_Color.png
+00:49.844  render           | Saved: 'D:\Gamejam\FiveHours\2026927\My project (2)\ArtSource\Blender\Rendered\tank_Normal.png'
+ASSET_RENDERED tank Normal: D:\Gamejam\FiveHours\2026927\My project (2)\ArtSource\Blender\Rendered\tank_Normal.png
+00:57.157  render           | Saved: 'D:\Gamejam\FiveHours\2026927\My project (2)\ArtSource\Blender\Rendered\tank_AO.png'
+ASSET_RENDERED tank AO: D:\Gamejam\FiveHours\2026927\My project (2)\ArtSource\Blender\Rendered\tank_AO.png
+01:04.813  render           | Saved: 'D:\Gamejam\FiveHours\2026927\My project (2)\ArtSource\Blender\Rendered\tank_Preview.png'
+ASSET_RENDERED tank Preview: D:\Gamejam\FiveHours\2026927\My project (2)\ArtSource\Blender\Rendered\tank_Preview.png
+Info: Saved as "tank.blend"
+ASSET_COMPLETE tank
+
+Blender quit

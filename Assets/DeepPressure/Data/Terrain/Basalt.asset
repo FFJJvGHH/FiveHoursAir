@@ -1,0 +1,36 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 4ab9fb3ab5bf21f4990e678bf0f19a77, type: 3}
+  m_Name: Basalt
+  m_EditorClassIdentifier: 
+  kind: 4
+  variants:
+  - {fileID: 21300000, guid: 2611f59305c9602448f5e45a6bb08be4, type: 3}
+  - {fileID: 21300000, guid: 6907ed7fe2e350d4880b296e1dfe8290, type: 3}
+  - {fileID: 21300000, guid: 539fa91b7d796934eb0899155e34eeb9, type: 3}
+  - {fileID: 21300000, guid: 3261ded3625d4344ba0500b5f9fc901a, type: 3}
+  - {fileID: 21300000, guid: 44a301370ef9495478fa022658eb1150, type: 3}
+  - {fileID: 21300000, guid: ba8ac6be5014fe2469b7141ea089dce3, type: 3}
+  - {fileID: 21300000, guid: 4c2dc7c5e79e3f449b01901ef8bde2dc, type: 3}
+  - {fileID: 21300000, guid: 8f639ff7898d44b428d0839e6a55d446, type: 3}
+  - {fileID: 21300000, guid: 0c45ddd51b36e6d4990e54a1872b0124, type: 3}
+  - {fileID: 21300000, guid: ef0bb120bb01f794cb00bae4c3d0a9d5, type: 3}
+  - {fileID: 21300000, guid: 0663fa9429ae2764e8bd5f104e7a5e4f, type: 3}
+  - {fileID: 21300000, guid: 8599e5c60bc530944afbab66b6c60128, type: 3}
+  - {fileID: 21300000, guid: 5ba3855ae546d464092c0e19e5c700fc, type: 3}
+  - {fileID: 21300000, guid: 764609adb7c056e40be894ef044652f4, type: 3}
+  - {fileID: 21300000, guid: 95e9859cc63da054fb40206b6849ed2f, type: 3}
+  - {fileID: 21300000, guid: 2d29a04baf0367a43a52ee09cae4cdef, type: 3}
+  densityKgM3: 2900
+  excavationResistance: 7
+  porosity: 0.025
+  permeability: 0.015

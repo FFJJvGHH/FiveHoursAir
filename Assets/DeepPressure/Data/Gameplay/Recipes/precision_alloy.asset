@@ -1,0 +1,28 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: ddc6c87997088894190d55c6d98f2968, type: 3}
+  m_Name: precision_alloy
+  m_EditorClassIdentifier: 
+  id: precision_alloy
+  displayName: "\u7CBE\u5BC6\u51B6\u70BC"
+  description: "\u5728\u7CBE\u5BC6\u5236\u9020\u53F0\u4E0A\u52A0\u5DE5\uFF1A6 \u77FF\u77F3
+    \u2192 4 \u5408\u91D1\u3002"
+  icon: {fileID: 1635451523, guid: e49821822b5478f429eca17fa54b9882, type: 3}
+  inputs:
+  - item: {fileID: 11400000, guid: 7f17c053bebcae846b93f55ae91dc661, type: 2}
+    amount: 6
+  outputs:
+  - item: {fileID: 11400000, guid: 15f167b5d4ca87f4393592342aad76b8, type: 2}
+    amount: 4
+  workSeconds: 12
+  requiredBuildingId: precision_fabricator
+  requiredTechId: industrial_efficiency

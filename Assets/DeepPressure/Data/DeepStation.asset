@@ -1,0 +1,70 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: faa0d44ca995a5440add71bbfa1b3d6a, type: 3}
+  m_Name: DeepStation
+  m_EditorClassIdentifier: 
+  levelName: "\u6DF1\u4E95\u4E03\u53F7\u7AD9"
+  width: 128
+  height: 80
+  starterBaseOffset: {x: 12, y: 40}
+  caves:
+  - id: western_mine
+    displayName: "\u65E7\u77FF\u4E95"
+    bounds:
+      x: 7
+      y: 23
+      width: 24
+      height: 12
+    pressureKPa: 92
+    temperatureC: 22
+    composition: {x: 0.19, y: 0.77, z: 0.03, w: 0.01}
+  - id: wet_basin
+    displayName: "\u6E7F\u6C14\u76C6\u5730"
+    bounds:
+      x: 43
+      y: 11
+      width: 27
+      height: 13
+    pressureKPa: 320
+    temperatureC: 22
+    composition: {x: 0.16, y: 0.55, z: 0.14, w: 0.15}
+  - id: buried_workshop
+    displayName: "\u57CB\u85CF\u5DE5\u574A"
+    bounds:
+      x: 70
+      y: 36
+      width: 22
+      height: 11
+    pressureKPa: 85
+    temperatureC: 22
+    composition: {x: 0.17, y: 0.77, z: 0.05, w: 0.01}
+  - id: deep_pressure
+    displayName: "\u6DF1\u5C42\u6C14\u85CF"
+    bounds:
+      x: 93
+      y: 13
+      width: 27
+      height: 17
+    pressureKPa: 850
+    temperatureC: 22
+    composition: {x: 0.06, y: 0.68, z: 0.22, w: 0.04}
+  - id: upper_fault
+    displayName: "\u4E0A\u90E8\u88C2\u9699"
+    bounds:
+      x: 84
+      y: 59
+      width: 24
+      height: 13
+    pressureKPa: 120
+    temperatureC: 22
+    composition: {x: 0.23, y: 0.74, z: 0.02, w: 0.01}
+  catalog: {fileID: 11400000, guid: 3cc5ea73892cef144acfa11522205292, type: 2}

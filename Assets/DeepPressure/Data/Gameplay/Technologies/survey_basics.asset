@@ -1,0 +1,28 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 470fc0fc056ceb74f9333aaf540a3a50, type: 3}
+  m_Name: survey_basics
+  m_EditorClassIdentifier: 
+  id: survey_basics
+  displayName: "\u5730\u4E0B\u6D4B\u91CF"
+  description: "\u5EFA\u7ACB\u6837\u672C\u8BB0\u5F55\u4E0E\u6C14\u4F53\u50A8\u5B58\u89C4\u8303\u3002"
+  icon: {fileID: 21300000, guid: eff8c3526cdccde48bbbff06c3c6b1fb, type: 3}
+  branch: "\u6C14\u4F53\u5DE5\u7A0B"
+  tier: 0
+  workSeconds: 25
+  prerequisiteIds: []
+  cost:
+  - item: {fileID: 11400000, guid: 0be86df95d73edc43b816b05785abe39, type: 2}
+    amount: 4
+  unlockBuildingIds:
+  - gas_tank
+  unlockRecipeIds: []

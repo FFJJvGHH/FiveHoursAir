@@ -1,0 +1,36 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 4ab9fb3ab5bf21f4990e678bf0f19a77, type: 3}
+  m_Name: Metal
+  m_EditorClassIdentifier: 
+  kind: 5
+  variants:
+  - {fileID: 21300000, guid: b07cb76d52df1044197e532da9ad0151, type: 3}
+  - {fileID: 21300000, guid: bb270809791975c4aa6738f428b017f4, type: 3}
+  - {fileID: 21300000, guid: 6baed27e19ae38b45b404245592209f6, type: 3}
+  - {fileID: 21300000, guid: 81051b3e75bb0c24cab10883e904290c, type: 3}
+  - {fileID: 21300000, guid: 5014819083674c44b84b556bbe358eae, type: 3}
+  - {fileID: 21300000, guid: 0dab08714b6cece43a11e3446a3c5753, type: 3}
+  - {fileID: 21300000, guid: c7c5ada3103676f42aa653ab1ab0bea0, type: 3}
+  - {fileID: 21300000, guid: 81cadd898359d484bb5b470684e49c00, type: 3}
+  - {fileID: 21300000, guid: 420cf9149c29aea439c8b6e8d0b4c528, type: 3}
+  - {fileID: 21300000, guid: 093bdb5aaeb654e4fac78bdf1163a105, type: 3}
+  - {fileID: 21300000, guid: be31ab84a9849354e955f9cf4b38f1aa, type: 3}
+  - {fileID: 21300000, guid: 8ccd1794ba456b34d8e875b5b187732d, type: 3}
+  - {fileID: 21300000, guid: 2e0a25d3effb0874bac796d425e2259d, type: 3}
+  - {fileID: 21300000, guid: 9156eb5a4018e41408079e1bb40c36e9, type: 3}
+  - {fileID: 21300000, guid: d08ad6ea259dc9b4ea312989f667ec8b, type: 3}
+  - {fileID: 21300000, guid: c095eca5f2a9104429e93030361e04f1, type: 3}
+  densityKgM3: 7800
+  excavationResistance: 9
+  porosity: 0
+  permeability: 0

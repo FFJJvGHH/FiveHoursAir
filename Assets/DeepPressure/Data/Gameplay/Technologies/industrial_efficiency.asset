@@ -1,0 +1,33 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 470fc0fc056ceb74f9333aaf540a3a50, type: 3}
+  m_Name: industrial_efficiency
+  m_EditorClassIdentifier: 
+  id: industrial_efficiency
+  displayName: "\u9AD8\u6548\u751F\u4EA7"
+  description: "\u5C06\u80FD\u6E90\u4E0E\u6750\u6599\u6280\u672F\u7528\u4E8E\u7CBE\u5BC6\u5236\u9020\uFF0C\u7F29\u77ED\u52A0\u5DE5\u94FE\u3002"
+  icon: {fileID: 21300000, guid: 83ede679188465247a0ad9e15b1fb59f, type: 3}
+  branch: "\u6750\u6599\u5236\u9020"
+  tier: 2
+  workSeconds: 55
+  prerequisiteIds:
+  - advanced_fabrication
+  - power_distribution
+  cost:
+  - item: {fileID: 11400000, guid: 0be86df95d73edc43b816b05785abe39, type: 2}
+    amount: 10
+  - item: {fileID: 11400000, guid: d0962528e982fe748b8d7f0f945de416, type: 2}
+    amount: 3
+  unlockBuildingIds:
+  - precision_fabricator
+  unlockRecipeIds:
+  - precision_alloy

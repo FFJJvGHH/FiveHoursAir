@@ -1,0 +1,19 @@
+D:\Gamejam\FiveHours\2026927\My project (2)\Tools\Blender\build_industrial_assets.py:44: DeprecationWarning: 'Material.use_nodes' is expected to be removed in Blender 6.0
+  mat.use_nodes = True
+00:07.750  render           | Saved: 'D:\Gamejam\FiveHours\2026927\My project (2)\ArtSource\Blender\Rendered\compressor_Normal.png'
+ASSET_RENDERED compressor Normal: D:\Gamejam\FiveHours\2026927\My project (2)\ArtSource\Blender\Rendered\compressor_Normal.png
+00:07.750  reports          | WARNING Path 'C:\Program Files\Blender Foundation\Blender 5.2\5.2\datafiles\assets\brushes\essentials_brushes-gp_draw.blend' cannot be made relative for Material 'Dots Stroke'
+Blender 5.2.1 LTS (hash 9e2066aef7ef built 2026-08-25 02:38:20)
+00:07.750  reports          | WARNING Path 'C:\Program Files\Blender Foundation\Blender 5.2\5.2\datafiles\assets\brushes\essentials_brushes-gp_draw.blend' cannot be made relative for Material 'Material'
+Info: Saved as "compressor.blend"
+ASSET_COMPLETE compressor
+00:11.282  render           | Saved: 'D:\Gamejam\FiveHours\2026927\My project (2)\ArtSource\Blender\Rendered\separator_Normal.png'
+ASSET_RENDERED separator Normal: D:\Gamejam\FiveHours\2026927\My project (2)\ArtSource\Blender\Rendered\separator_Normal.png
+Info: Saved as "separator.blend"
+ASSET_COMPLETE separator
+00:14.641  render           | Saved: 'D:\Gamejam\FiveHours\2026927\My project (2)\ArtSource\Blender\Rendered\tank_Normal.png'
+ASSET_RENDERED tank Normal: D:\Gamejam\FiveHours\2026927\My project (2)\ArtSource\Blender\Rendered\tank_Normal.png
+Info: Saved as "tank.blend"
+ASSET_COMPLETE tank
+
+Blender quit

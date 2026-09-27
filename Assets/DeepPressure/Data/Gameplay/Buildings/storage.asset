@@ -1,0 +1,35 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 6c73d5aa9d8782e46a76fc0855dcb0a9, type: 3}
+  m_Name: storage
+  m_EditorClassIdentifier: 
+  id: storage
+  displayName: "\u4ED3\u5E93"
+  category: "\u7269\u6D41"
+  description: "\u63D0\u4F9B\u5171\u4EAB\u5E93\u5B58\u5BB9\u91CF\uFF1B\u8F93\u5165\u548C\u6210\u54C1\u5360\u7528\u540C\u4E00\u6709\u9650\u7A7A\u95F4\u3002"
+  icon: {fileID: 21300000, guid: b0dec3ad43aa38340ae5fba2d421f104, type: 3}
+  prefab: {fileID: 2565278132476025258, guid: bcd40823390bd0748b3274873a2dc8f1, type: 3}
+  footprint: {x: 3, y: 2}
+  workSeconds: 8
+  requiresFloor: 1
+  blocksMovement: 0
+  role: 8
+  requiredTechId: 
+  cost:
+  - item: {fileID: 11400000, guid: 15f167b5d4ca87f4393592342aad76b8, type: 2}
+    amount: 6
+  powerGenerated: 0
+  powerRequired: 0
+  fuelItem: {fileID: 0}
+  fuelUnitsPerSecond: 0
+  storageCapacity: 200
+  ports: []

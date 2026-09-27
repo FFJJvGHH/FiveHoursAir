@@ -1,0 +1,31 @@
+# Unity-generated files
+/[Ll]ibrary/
+/[Tt]emp/
+/[Oo]bj/
+/[Bb]uild/
+/[Bb]uilds/
+/[Ll]ogs/
+/[Uu]ser[Ss]ettings/
+/[Mm]emoryCaptures/
+/[Rr]ecordings/
+
+# IDE-generated files
+/.vs/
+/.vscode/
+/.idea/
+*.csproj
+*.sln
+*.suo
+*.user
+*.userprefs
+
+# Local OS and editor files
+.DS_Store
+Thumbs.db
+*.tmp
+*.bak
+*.blend1
+
+# Python-generated files from art tools
+__pycache__/
+*.pyc

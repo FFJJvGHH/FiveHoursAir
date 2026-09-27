@@ -1,0 +1,42 @@
+{
+  "asset": "tank",
+  "imageSize": [
+    512,
+    512
+  ],
+  "orthographicSizeWorld": 5.5,
+  "pixelsPerBlenderUnit": 93.0909090909091,
+  "unitySpritePivotNormalized": [
+    0.5,
+    0.111839
+  ],
+  "pivotConvention": "Unity normalized sprite coordinates: bottom-left (0,0), top-right (1,1)",
+  "normalConvention": "X right; Y up; Z toward viewer. Raw RGB = normal * 0.5 + 0.5.",
+  "ports": [
+    {
+      "name": "PRESSURE_INLET_ANCHOR",
+      "worldPosition": [
+        -1.722999930381775,
+        0.029999999329447746,
+        1.5800000429153442
+      ],
+      "spritePositionNormalized": [
+        0.186727,
+        0.394271
+      ]
+    },
+    {
+      "name": "PRESSURE_OUTLET_ANCHOR",
+      "worldPosition": [
+        1.772999882698059,
+        0.029999999329447746,
+        1.5800000429153442
+      ],
+      "spritePositionNormalized": [
+        0.822364,
+        0.394271
+      ]
+    }
+  ],
+  "gameplayNote": "Visual port coordinates only. Define occupancy and gas network ports separately in building data."
+}

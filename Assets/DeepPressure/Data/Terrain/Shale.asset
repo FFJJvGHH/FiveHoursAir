@@ -1,0 +1,36 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 4ab9fb3ab5bf21f4990e678bf0f19a77, type: 3}
+  m_Name: Shale
+  m_EditorClassIdentifier: 
+  kind: 3
+  variants:
+  - {fileID: 21300000, guid: 00e3ce1104ff6af479bb30bc5b5bd3e1, type: 3}
+  - {fileID: 21300000, guid: fb9a7696ef69ea34bba186fd9111548a, type: 3}
+  - {fileID: 21300000, guid: 5747434af857bca4f9720106075820c7, type: 3}
+  - {fileID: 21300000, guid: e3513d03a054578449ec511ffc365770, type: 3}
+  - {fileID: 21300000, guid: 85c62b7f2430267468d09b0151bf9781, type: 3}
+  - {fileID: 21300000, guid: 4c3e32378f43d61418a17f52c409c219, type: 3}
+  - {fileID: 21300000, guid: 5286ca84074042341841a7359d6e80cb, type: 3}
+  - {fileID: 21300000, guid: ce4f57d75e74a024baced9f0933a3480, type: 3}
+  - {fileID: 21300000, guid: 1cdb94160224ab447ad90794e3009c10, type: 3}
+  - {fileID: 21300000, guid: cc481b1513c238e4d818581f68064fa3, type: 3}
+  - {fileID: 21300000, guid: 3b6474fe20d46a44bad1b074defbafc9, type: 3}
+  - {fileID: 21300000, guid: 71fe52dec438a0e48add83f8ebeb962f, type: 3}
+  - {fileID: 21300000, guid: 638838d8b045d9d4f9f2d29e40f3f96a, type: 3}
+  - {fileID: 21300000, guid: 62ac3154f181ef44482a6398f0dc5ffe, type: 3}
+  - {fileID: 21300000, guid: c6e36e8757db35f45bebe6308561a24f, type: 3}
+  - {fileID: 21300000, guid: 4bc497c936076234297d64fe7b73512f, type: 3}
+  densityKgM3: 2500
+  excavationResistance: 4
+  porosity: 0.07
+  permeability: 0.006

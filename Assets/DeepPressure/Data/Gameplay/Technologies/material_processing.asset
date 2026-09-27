@@ -1,0 +1,29 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 470fc0fc056ceb74f9333aaf540a3a50, type: 3}
+  m_Name: material_processing
+  m_EditorClassIdentifier: 
+  id: material_processing
+  displayName: "\u6750\u6599\u5B66"
+  description: "\u6539\u5584\u77FF\u77F3\u5206\u7C7B\u4E0E\u6279\u91CF\u51B6\u70BC\uFF1B9
+    \u77FF\u77F3\u53EF\u4EA7\u51FA 4 \u5408\u91D1\u3002"
+  icon: {fileID: 1635451523, guid: e49821822b5478f429eca17fa54b9882, type: 3}
+  branch: "\u6750\u6599\u5236\u9020"
+  tier: 0
+  workSeconds: 20
+  prerequisiteIds: []
+  cost:
+  - item: {fileID: 11400000, guid: 7f17c053bebcae846b93f55ae91dc661, type: 2}
+    amount: 10
+  unlockBuildingIds: []
+  unlockRecipeIds:
+  - smelt_alloy_bulk
