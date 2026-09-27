@@ -21,7 +21,7 @@ namespace DeepPressure
         GasNode pipeSource,hoveredPipeNode;
         GasOutputPort pipePort;
         DeepRecipeDefinition recipeChoice;
-        int buildingPage,ordersPage,recipePage,craftBatches=1;
+        int buildingPage,ordersPage,recipePage,craftBatches=1,productionAmount=10;
         Rect colonyRect,inventoryRect;
         bool pauseMenu,settingsMenu,drawingPauseMenu,pauseBeforeMenu,particlesEnabled=true,cameraCaptured;
         Vector3 startingCameraPosition;
@@ -224,7 +224,7 @@ namespace DeepPressure
         {
             float x=colonyRect.x+16,y=colonyRect.y+57,width=colonyRect.width-32;
             var recipes=session.catalog.recipes.Where(r=>r!=null&&(selectedBuilding==null||selectedBuilding.definition==null||r.requiredBuildingId==selectedBuilding.definition.id)).ToArray();
-            int recipeRows=Mathf.Max(1,Mathf.Min(4,(int)((colonyRect.height-178)/67))),recipePages=Mathf.Max(1,Mathf.CeilToInt(recipes.Length/(float)recipeRows));
+            int recipeRows=Mathf.Max(1,Mathf.Min(3,(int)((colonyRect.height-230)/67))),recipePages=Mathf.Max(1,Mathf.CeilToInt(recipes.Length/(float)recipeRows));
             recipePage=Mathf.Clamp(recipePage,0,recipePages-1);
             foreach(var recipe in recipes.Skip(recipePage*recipeRows).Take(recipeRows))
             {
@@ -251,6 +251,13 @@ namespace DeepPressure
                 Rect submit=new Rect(x+197,y,width-197,28);ActionButton(submit,Icon.Craft,"安排制造",can);
                 RegisterHover("craftsubmit",submit,"安排制造",can?CostText(recipeChoice.inputs,craftBatches):reason);
                 if(Click(submit)){bool ok=session.RequestCraft(recipeChoice,craftBatches,out string result);ShowToast(result,ok);}y+=43;
+                var target=session.ProductionTargetFor(recipeChoice.id);
+                Label(new Rect(x,y,100,28),"目标库存",small,Muted);
+                SmallButton(new Rect(x+83,y,27,27),"−",()=>productionAmount=Mathf.Max(1,productionAmount-5));
+                Label(new Rect(x+119,y,39,27),productionAmount.ToString(),body,White);
+                SmallButton(new Rect(x+153,y,27,27),"+",()=>productionAmount=Mathf.Min(999,productionAmount+5));
+                SmallButton(new Rect(x+193,y,width-193,27),target!=null&&target.enabled?"暂停补货":"维持库存",()=>session.SetProductionTarget(recipeChoice,productionAmount,!(target!=null&&target.enabled)));y+=36;
+                Label(new Rect(x,y,width,26),target==null?"开启后低于目标自动投料，达到目标停止。":target.status??"等待检查库存",small,Muted);y+=32;
             }
             foreach(var order in session.Orders.Where(o=>o!=null&&!o.IsTerminal&&o.recipe!=null).Take(Mathf.Max(0,(int)((colonyRect.yMax-y-10)/57))))
             {DrawOrderRow(order,new Rect(x,y,width,50));y+=57;}
@@ -310,12 +317,12 @@ namespace DeepPressure
                 RectInt bounds;
                 if(colonyTool==ColonyTool.Build&&buildChoice!=null)
                 {bounds=new RectInt(cell,buildChoice.footprint);allowed=session.CanBuild(buildChoice,cell,out reason);}
-                else{bounds=new RectInt(cell,Vector2Int.one);allowed=session.CanDig(cell,out reason);}
+                else{bounds=new RectInt(cell,Vector2Int.one);allowed=session.CanDig(cell,out reason);if(allowed)reason=session.ExcavationRisk(cell);}
                 Rect rect=WorldBounds(bounds);Color color=allowed?Mint:new Color(.94f,.34f,.27f);
                 Fill(rect,WithAlpha(color,.13f));Brackets(rect,WithAlpha(color,.92f),Mathf.Min(12,rect.width*.25f));
                 if(colonyTool==ColonyTool.Build&&buildChoice!=null&&buildChoice.icon!=null)DrawAssetIcon(buildChoice.icon,Inset(rect,2),WithAlpha(color,.38f),Icon.Build);
                 DrawIcon(colonyTool==ColonyTool.Build?Icon.Build:Icon.Dig,new Rect(pointer.x+13,pointer.y+12,21,21),color);
-                if(!allowed&&!string.IsNullOrEmpty(reason))
+                if(!string.IsNullOrEmpty(reason))
                 {Rect hint=new Rect(Mathf.Min(pointer.x+38,uiWidth-244),Mathf.Min(pointer.y+13,uiHeight-120),227,28);Rounded(hint,Panel,7);Label(Inset(hint,7),reason,small,Amber);}
             }
             DeepWorker worker=hoveredWorker!=null?hoveredWorker:selectedWorker;

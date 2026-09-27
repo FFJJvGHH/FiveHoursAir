@@ -9,6 +9,7 @@ namespace DeepPressure
         public GasNode node;
         public Transform housing,fan,pressureNeedle;
         public SpriteRenderer statusLight;
+        public SpriteRenderer[] chargeSegments;
         public Vector3 housingRestPosition;
         public Vector3 fanRestPosition;
         public Vector3 needleRestPosition;
@@ -53,6 +54,12 @@ namespace DeepPressure
         }
         void RefreshInstruments(bool active,bool fault)
         {
+            if(building!=null&&building.definition!=null&&chargeSegments!=null&&chargeSegments.Length>0)
+            {
+                float charge=Application.isPlaying?building.batteryEnergy/Mathf.Max(1,building.definition.batteryCapacity):0;
+                for(int i=0;i<chargeSegments.Length;i++)if(chargeSegments[i]!=null)
+                    chargeSegments[i].color=charge>(float)i/chargeSegments.Length?new Color(.68f,.97f,.61f):new Color(.18f,.27f,.29f);
+            }
             if(pressureNeedle!=null&&node!=null)
             {
                 float pressure=Application.isPlaying?(float)node.PressureKPa:node.initialPressureKPa;

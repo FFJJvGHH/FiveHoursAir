@@ -34,6 +34,8 @@ namespace DeepPressure
         public Vector2Int[] wires;
         public DeepProductionTarget[] production;
         public float stableAirSeconds;
+        public GasMixture[] atmosphereCells;
+        public double[] atmosphereTemperatures;
     }
     [Serializable] public sealed class DeepSaveSlotInfo
     {

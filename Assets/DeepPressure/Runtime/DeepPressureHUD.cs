@@ -38,8 +38,8 @@ namespace DeepPressure
         static readonly Color Muted = new Color(.48f,.59f,.60f,1);
         static readonly Color Mint = new Color(.55f,.84f,.72f,1);
         static readonly Color Amber = new Color(.88f,.66f,.36f,1);
-        static readonly Color[] SpeciesColors = { new Color(.54f,.84f,.75f), new Color(.44f,.62f,.68f), new Color(.78f,.60f,.39f), new Color(.64f,.61f,.74f) };
-        static readonly string[] SpeciesLabels = { "O₂", "N₂", "CO₂", "H₂O" };
+        static readonly Color[] SpeciesColors = { new Color(.54f,.84f,.75f), new Color(.44f,.62f,.68f), new Color(.78f,.60f,.39f), new Color(.64f,.61f,.74f),new Color(.93f,.71f,.30f),new Color(.80f,.44f,.79f) };
+        static readonly string[] SpeciesLabels = { "O₂", "N₂", "CO₂", "H₂O","CH₄","工气" };
 
         void Start()
         {
@@ -237,7 +237,7 @@ namespace DeepPressure
             {
                 PressureValue(x,ref y,sample.pressureKPa,"气体样本");
                 Metric(new Rect(x,y,210,22),Icon.Temperature,sample.temperatureC.ToString("0")+" °C"); y += 29;
-                DrawComposition(x,ref y,GasMixture.FromPressure(100,1,22,sample.composition));
+                DrawComposition(x,ref y,GasMixture.FromPressure(100,1,22,sample.composition,sample.reactiveComposition));
             }
             else
             {
@@ -285,7 +285,7 @@ namespace DeepPressure
         }
         void DrawComposition(float x,ref float y,GasMixture mixture)
         {
-            for (int i = 0; i < 4; i++)
+            for (int i = 0; i < GasMixture.SpeciesCount; i++)
             {
                 float fraction = mixture.Total <= 1e-9 ? 0 : (float)(mixture[i]/mixture.Total);
                 Label(new Rect(x,y-3,30,19),SpeciesLabels[i],small,SpeciesColors[i]);

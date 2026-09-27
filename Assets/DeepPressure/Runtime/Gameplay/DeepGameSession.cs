@@ -56,6 +56,7 @@ namespace DeepPressure
                 if (!inventory.TryAdd(item.item,item.amount)) Debug.LogError("Initial warehouse item does not fit or is invalid: "+(item.item == null ? "null" : item.item.id),this);
             if (excavationItem == null && catalog != null) excavationItem = catalog.FindItem("ore");
             UpdatePower(0);
+            if(lifeSupportEnabled){var field=Atmosphere;}
             RefreshExplorationVisibility();
         }
         void Update()

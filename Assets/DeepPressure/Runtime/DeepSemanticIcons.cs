@@ -25,7 +25,7 @@ namespace DeepPressure
                     c.Circle(27,38,16);c.Line(39,26,52,12,5);c.Line(17,37,23,43);c.Line(23,43,29,32);c.Line(29,32,38,41);break;
                 case "pressure_engineering":case "gas_regulator":
                     c.Arc(32,31,21,-32,212);c.Line(14,14,50,14);c.Line(32,31,43,43,5);c.Disc(32,31,4);c.Line(13,42,17,39);c.Line(32,51,32,46);break;
-                case "selective_separation":case "gas_separator":
+                case "selective_separation":case "gas_separator":case "co2_scrubber":
                     c.Line(10,32,25,32,5);c.Line(25,32,40,47,5);c.Line(25,32,40,17,5);c.Line(40,47,53,47,5);c.Line(40,17,53,17,5);c.Circle(43,17,6);c.Disc(43,47,6);break;
                 case "colony_planning":
                     c.Box(11,14,19,17);c.Box(35,14,19,17);c.Box(22,39,19,15);c.Line(20,32,20,38);c.Line(20,38,43,38);c.Line(43,38,43,32);break;
@@ -39,7 +39,7 @@ namespace DeepPressure
                     c.Box(19,19,26,26);c.Box(26,26,12,12);for(int k=0;k<3;k++){float v=23+k*9;c.Line(v,10,v,18);c.Line(v,46,v,54);c.Line(10,v,18,v);c.Line(46,v,54,v);}break;
                 case "industrial_efficiency":case "precision_fabricator":
                     c.Arc(32,32,20,30,320);c.Path(4,40,50,51,50,51,39);c.Path(4,35,46,23,28,33,28,29,17,43,35,33,35);break;
-                case "gas_tank":case "high_pressure_tank":case "battery":
+                case "gas_tank":case "high_pressure_tank":case "oxygen_tank":case "waste_tank":case "battery":
                     c.Box(18,12,28,39);c.Line(24,56,40,56,5);c.Line(23,21,41,21);c.Line(23,30,41,30);c.Line(23,39,41,39);break;
                 case "storage":case "advanced_storage":case "deep_storage":
                     c.Box(11,13,42,38);c.Line(11,32,53,32);c.Line(25,42,39,42,5);c.Line(25,23,39,23,5);break;
@@ -53,8 +53,10 @@ namespace DeepPressure
                     c.Box(9,22,46,20);c.Line(24,23,24,41);c.Line(40,23,40,41);c.Line(10,15,54,15);break;
                 case "wire":
                     c.Line(10,42,29,42,5);c.Line(29,42,29,21,5);c.Line(29,21,52,21,5);c.Circle(10,42,5);c.Circle(52,21,5);break;
-                case "oxygen_vent":case "air_vent":
+                case "oxygen_vent":case "air_vent":case "supply_vent":case "exhaust_vent":
                     c.Box(10,16,20,32);for(int y=24;y<=40;y+=8)c.Line(14,y,25,y);c.Line(36,38,54,38);c.Line(36,25,50,25);c.Path(3,48,44,54,38,48,32);break;
+                case "intake_pump":
+                    c.Circle(34,33,18);c.Line(8,33,24,33,5);c.Path(4,18,40,25,33,18,26);c.Line(48,22,56,22,5);c.Line(23,11,48,11,5);break;
                 default:return DeepUIIcons.Get(DeepUIIcons.Icon.Research);
             }
             result=new Texture2D(64,64,TextureFormat.RGBA32,false,true){name="Engineering symbol • "+id,filterMode=FilterMode.Bilinear,wrapMode=TextureWrapMode.Clamp,hideFlags=HideFlags.HideAndDontSave};

@@ -27,6 +27,11 @@ namespace DeepPressure
                     RequireSave(data.wires!=null&&data.production!=null&&SaveFinite(data.stableAirSeconds)&&data.stableAirSeconds>=0,"电网或生产数据缺失");
                     var cells=new HashSet<Vector2Int>();foreach(var cell in data.wires)RequireSave(world.IsInside(cell)&&cells.Add(cell),"电线格重复或越界");
                     var recipes=new HashSet<string>();foreach(var p in data.production)RequireSave(p!=null&&catalog.FindRecipe(p.recipeId)!=null&&recipes.Add(p.recipeId)&&p.targetAmount>0&&p.targetAmount<=999,"生产目标无效");
+                    if(data.lifeSupport)
+                    {
+                        RequireSave(data.atmosphereCells!=null&&data.atmosphereTemperatures!=null&&data.atmosphereCells.Length==data.terrain.Length&&data.atmosphereTemperatures.Length==data.terrain.Length,"逐格气氛数据不完整");
+                        for(int i=0;i<data.atmosphereCells.Length;i++)RequireSave(data.atmosphereCells[i].IsFiniteAndNonnegative&&SaveFinite(data.atmosphereTemperatures[i])&&data.atmosphereTemperatures[i]>-273.15,"逐格气氛数据无效");
+                    }
                 }
                 RequireSave(!data.hasCamera || SaveFinite(data.cameraPosition) && SaveFinite(data.cameraSize) && data.cameraSize > 0 && data.cameraSize <= 200,"镜头数据无效");
                 ValidateSavedItems(data.inventory);

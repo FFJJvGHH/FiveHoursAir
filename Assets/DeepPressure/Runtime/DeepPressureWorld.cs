@@ -146,7 +146,7 @@ namespace DeepPressure
                     var region = RegionAt(cell);
                     double temp = region == null ? defaultTemperatureC : region.initialTemperatureC;
                     double volume = cellSize * cellSize * crossSectionDepthM;
-                    GasMixture mixture = GasMixture.FromPressure(region == null ? defaultPressureKPa : region.initialPressureKPa, volume, temp, region == null ? defaultComposition : region.composition);
+                    GasMixture mixture = GasMixture.FromPressure(region == null ? defaultPressureKPa : region.initialPressureKPa, volume, temp, region == null ? defaultComposition : region.composition,region==null?Vector2.zero:region.reactiveFractions);
                     room.volumeM3 += volume; room.gas += mixture; temperatureMolSum += mixture.Total * (temp + 273.15); fallbackTemperatureSum += temp;
                     foreach (Vector2Int direction in directions)
                     {

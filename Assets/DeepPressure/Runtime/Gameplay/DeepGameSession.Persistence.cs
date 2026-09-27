@@ -127,6 +127,7 @@ namespace DeepPressure
             var roomData = new List<DeepSavedRoom>();
             foreach (var room in world.Rooms) roomData.Add(new DeepSavedRoom { anchor = room.cells[0],cells = room.cellCount,gas = room.gas,temperature = room.temperatureC });
             data.rooms = roomData.ToArray();
+            if(lifeSupportEnabled&&Atmosphere!=null){data.atmosphereCells=Atmosphere.CaptureCells();data.atmosphereTemperatures=Atmosphere.CaptureTemperatures();}
             if (network != null) { data.networkElapsed = network.ElapsedSeconds; data.networkSteps = network.StepCount; data.networkRemainder = network.SaveRemainder; data.networkStepSeconds = network.fixedStepSeconds; }
             return data;
         }
@@ -305,6 +306,11 @@ namespace DeepPressure
                 foreach(var p in data.production??Array.Empty<DeepProductionTarget>())productionTargets.Add(new DeepProductionTarget{recipeId=p.recipeId,targetAmount=p.targetAmount,enabled=p.enabled});
             }
             nextProductionCheck=0;InvalidatePowerTopology();
+            if(lifeSupportEnabled&&Atmosphere!=null)
+            {
+                Atmosphere.ResetFromRooms();
+                if(data.atmosphereCells!=null)Atmosphere.RestoreCells(data.atmosphereCells,data.atmosphereTemperatures);
+            }
             RebuildOccupancy(); RefreshStorageCapacity(); UpdatePower(0);
             if (network != null)
             {
