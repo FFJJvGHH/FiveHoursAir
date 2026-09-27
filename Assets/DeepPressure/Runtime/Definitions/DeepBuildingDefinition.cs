@@ -1,7 +1,7 @@
 using UnityEngine;
 namespace DeepPressure
 {
-    public enum DeepBuildingRole { Structure,Ladder,Light,Generator,Research,GasTank,GasRegulator,GasSeparator,Storage,Floor,Fabricator }
+    public enum DeepBuildingRole { Structure,Ladder,Light,Generator,Research,GasTank,GasRegulator,GasSeparator,Storage,Floor,Fabricator,Vent,Battery,GasPump }
     public enum DeepPortKind { GasIn,GasOut,PowerIn,PowerOut,LiquidIn,LiquidOut }
     [System.Serializable]
     public struct DeepBuildingPort
@@ -28,6 +28,11 @@ namespace DeepPressure
         [Min(0)] public float powerGenerated,powerRequired;
         public DeepItemDefinition fuelItem;
         [Min(0)] public float fuelUnitsPerSecond;
+        [Min(0)] public float batteryCapacity = 600, batteryTransferRate = 20;
+        public bool exchangesRoomGas;
+        public DeepGasFacilityMode gasMode = DeepGasFacilityMode.Storage;
+        public DeepGasAcceptance gasAcceptance = DeepGasAcceptance.Any;
+        [Min(0)] public float gasTransferMolPerSecond = 3;
         [Min(0)] public int storageCapacity;
         [Min(.1f)] public float gasStorageVolume = 8;
         public DeepBuildingPort[] ports=System.Array.Empty<DeepBuildingPort>();

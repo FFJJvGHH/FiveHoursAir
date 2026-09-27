@@ -9,6 +9,7 @@ namespace DeepPressure
         public DeepBuildingDefinition definition;
         public Vector2Int origin;
         public bool isOn = true, isConstructed = true, powered;
+        [Min(0)] public float batteryEnergy, fuelSecondsRemaining;
         public Light2D[] lights;
         public SpriteRenderer[] glowRenderers;
         public Transform visualRoot;

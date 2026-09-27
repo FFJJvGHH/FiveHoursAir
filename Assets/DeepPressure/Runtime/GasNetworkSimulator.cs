@@ -118,6 +118,7 @@ namespace DeepPressure
                 if (capacities[destination] <= 1e-8) { link.status = "Outlet full / pressure limit"; continue; }
                 GasMixture available = snapshot[source].Filter(link.fromPort);
                 if (available.Total <= 1e-9) { link.status = "No eligible gas"; continue; }
+                if (!DeepGasFacility.Accepts(nodes[destination],available)) { link.status = "气体成分不符合储罐用途"; continue; }
                 // Partial-pressure fraction sets each separator branch's share of the total stream.
                 double fraction = available.Total / Math.Max(1e-9, snapshot[source].Total);
                 double amount = Math.Min(Math.Max(0, link.maxFlowMolPerSecond), pressureDifference * Math.Max(0, link.conductanceMolPerSecondPerKPa)) * Mathf.Clamp01(link.valve) * seconds * fraction;

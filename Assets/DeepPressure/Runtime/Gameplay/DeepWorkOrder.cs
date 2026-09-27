@@ -2,7 +2,7 @@ using System;
 using UnityEngine;
 namespace DeepPressure
 {
-    public enum DeepWorkKind { Build, Dig, Move, Research, Craft, Pipe }
+    public enum DeepWorkKind { Build, Dig, Move, Research, Craft, Pipe, Wire, Sample, Survey }
     public enum DeepWorkState { Queued, Moving, Working, Blocked, Completed, Cancelled }
     [Serializable]
     public sealed class DeepWorkOrder

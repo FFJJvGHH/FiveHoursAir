@@ -26,7 +26,7 @@ namespace DeepPressure
         [Tooltip("Editor-authored full-map quad using DeepPressure/GasAtmosphere.")]
         public SpriteRenderer gasRenderer;
         [Min(1)] public int drillReachCells = 12;
-        [Tooltip("Prototype abstract sealed-equipment permission. Does not imply worker pathfinding.")]
+        [Tooltip("Legacy save field. Equipment never reveals terrain or grants a remote move.")]
         public bool hasIsolationEquipment;
         [Header("Game entry thresholds, not real-world safety guidance")]
         public float minimumPressureKPa = 60, maximumPressureKPa = 135;
@@ -106,12 +106,11 @@ namespace DeepPressure
         public void RevealAroundWork(Vector2Int cell)
         {
             Initialize();if(!initialized)return;
-            for(int y=-2;y<=2;y++)for(int x=-2;x<=2;x++)
-            {var p=cell+new Vector2Int(x,y);if(world.IsInside(p)&&(x*x+y*y<=4))visible[Index(p)]=true;}
-            RebuildDiscoveryTexture();RefreshGasTexture();ApplyProperties();
+            // Excavation exposes the cut face, never the room behind an unbroken wall.
+            if (RevealSight(cell,2)) CommitDiscovery();
         }
         public void RefreshAfterTerrainChange()
-        {Initialize();if(initialized){RebuildDiscoveryTexture();RefreshGasTexture();ApplyProperties();}}
+        {Initialize();if(initialized){sightRevision++; RebuildDiscoveryTexture();RefreshGasTexture();ApplyProperties();}}
 
         public DeepExplorationState GetState(DeepPressureRegion region)
         {
@@ -138,19 +137,11 @@ namespace DeepPressure
             if (!initialized || !world.IsInside(cell)) { message = "超出勘探范围。"; return false; }
             DeepPressureRegion region = world.RegionAt(cell);
             if (region == null) { message = "未发现可取样孔隙。"; return false; }
-            if (GetState(region) == DeepExplorationState.Explored) { message = "已有现场读数。"; return false; }
             if (!FindProbeCell(region, out Vector2Int probe, out int distance))
             { message = "此处为致密岩层。"; return false; }
             if (distance > Mathf.Max(1, drillReachCells))
             { message = "无法取样：距已探索边界 " + distance + " 格，钻探范围为 " + drillReachCells + " 格。"; return false; }
-            RegionSample sample = ReadAtmosphere(region, probe);
-            DeepParticleFeedback.Emit(DeepFeedbackKind.Sample,world.CellToWorld(probe));
-            scanOrigin=probe;scanStart=Time.time;
-            samples[region] = sample; states[region] = DeepExplorationState.Sampled;
-            RebuildDiscoveryTexture(); ApplyProperties();
-            message = string.Format("样本：{0:F0} kPa · {1:F0}°C · O₂ {2:P0}",
-                sample.pressureKPa, sample.temperatureC, sample.composition.x, sample.composition.y, sample.composition.z, sample.composition.w);
-            return true;
+            return RecordSample(region,probe,out message);
         }
 
         public bool TryExplore(Vector2Int cell, out string message)
@@ -159,25 +150,14 @@ namespace DeepPressure
             if (!initialized || !world.IsInside(cell)) { message = "无法探索：目标不在关卡范围内。"; return false; }
             DeepPressureRegion region = world.RegionAt(cell);
             if (region == null) { message = "此处尚未发现洞室。"; return false; }
-            if (GetState(region) == DeepExplorationState.Explored) { message = "此区域已经探索。"; return false; }
-            if (GetState(region) != DeepExplorationState.Sampled || !samples.TryGetValue(region, out RegionSample previous))
+            if (!samples.TryGetValue(region, out RegionSample previous))
             { message = "需要先取样。"; return false; }
-            if (!FindProbeCell(region, out Vector2Int probe, out int distance) || distance > Mathf.Max(1, drillReachCells))
-            { message = "无法探索：目标超过当前已探索边界的指令范围。"; return false; }
             RegionSample current = ReadAtmosphere(region, previous.sampleCell);
-            if (!hasIsolationEquipment && !MeetsEntryThresholds(current, out string reason))
-            { message = "进入受阻：" + reason + " · 需要隔绝装备"; return false; }
-            RevealRect(region.bounds); states[region] = DeepExplorationState.Explored;
-            RevealSolidRim();
-            // Reveal only an unassigned open connector immediately beside the authored region.
-            // This exposes the one-cell archive/shaft bridge, without revealing a neighboring region.
-            RectInt edge = new RectInt(region.bounds.xMin - 1, region.bounds.yMin - 1, region.bounds.width + 2, region.bounds.height + 2);
-            ForEachInside(edge, point =>
-            {
-                if (world.RegionAt(point) == null && world.GetTerrain(point.x, point.y) == TerrainKind.Empty) visible[Index(point)] = true;
-            });
-            RebuildDiscoveryTexture(); RefreshGasTexture(); ApplyProperties();
-            message = hasIsolationEquipment ? "勘探完成 · 隔绝设备在线" : "勘探完成 · 环境可进入";
+            if (!MeetsEntryThresholds(current, out string reason))
+            { message = "进入受阻：" + reason + " · 先通过气路调节环境"; return false; }
+            // This API is a permission check. Actual discovery follows the worker's sight;
+            // a click or the legacy isolation switch cannot reveal a sealed chamber.
+            message = "读数符合进入条件 · 派遣工人抵达入口后逐步探明";
             return true;
         }
 
@@ -305,7 +285,7 @@ namespace DeepPressure
             {
                 gasRenderer.GetPropertyBlock(gasProperties); SetMapProperties(gasProperties);
                 gasProperties.SetTexture("_VisibilityTex", visibilityTexture); gasProperties.SetTexture("_GasTex", compositionTexture);
-                gasProperties.SetTexture("_PressureTex", pressureTexture); gasRenderer.SetPropertyBlock(gasProperties);
+                gasProperties.SetTexture("_PressureTex", pressureTexture); gasProperties.SetFloat("_PressureScaleKPa",Mathf.Max(1,visualPressureScaleKPa)); gasRenderer.SetPropertyBlock(gasProperties);
             }
         }
         void SetMapProperties(MaterialPropertyBlock block)

@@ -64,6 +64,8 @@ namespace DeepPressure
             }
             if (order.kind == DeepWorkKind.Dig) return WorkPositions(new RectInt(order.targetCell,Vector2Int.one));
             if (order.kind == DeepWorkKind.Pipe) return PipeWorkPositions(order.fromNode,order.toNode);
+            if (order.kind == DeepWorkKind.Wire) return WireWorkPositions(order.targetCell);
+            if (order.kind == DeepWorkKind.Sample || order.kind == DeepWorkKind.Survey) return ExplorationWorkPositions(order);
             if (candidateWorker != null || order.targetBuilding == null || !order.targetBuilding.isConstructed || !order.targetBuilding.IsOperational || StationBusy(order.targetBuilding,order))
             {
                 var role = order.kind == DeepWorkKind.Research ? DeepBuildingRole.Research : DeepBuildingRole.Fabricator;
@@ -119,7 +121,7 @@ namespace DeepPressure
             if ((order.kind == DeepWorkKind.Research || order.kind == DeepWorkKind.Craft) && (order.targetBuilding == null || !order.targetBuilding.IsOperational))
             { RequeueWorker(worker,"工作台停用或电力不足"); order.state = DeepWorkState.Blocked; order.nextRetryTime = SimulationTime+1; return; }
             order.state = DeepWorkState.Working; order.statusReason = "作业中";
-            order.completedSeconds = Mathf.Min(order.totalSeconds,order.completedSeconds+dt*worker.workSpeed);
+            order.completedSeconds = Mathf.Min(order.totalSeconds,order.completedSeconds+dt*worker.workSpeed*Mathf.Max(.5f,worker.environmentEfficiency));
             if (order.Progress >= 1) TryComplete(order);
         }
         internal void RequeueWorker(DeepWorker worker,string reason)
@@ -165,7 +167,7 @@ namespace DeepPressure
                 case DeepWorkKind.Dig:
                 {
                     if (world.GetTerrain(order.targetCell.x,order.targetCell.y) == TerrainKind.Empty) { FinishOrder(order); return true; }
-                    var output = excavationItem == null || excavationYield <= 0 ? System.Array.Empty<DeepItemAmount>() : new[] { new DeepItemAmount(excavationItem,excavationYield) };
+                    var output = ExcavationOutputs(order.targetCell);
                     if (!inventory.CanComplete(null,output,1,out string reason)) return BlockFinished(order,reason);
                     if (world.terrain != null) world.terrain.SetTile(new Vector3Int(order.targetCell.x,order.targetCell.y,0),null);
                     world.SetTerrain(order.targetCell.x,order.targetCell.y,TerrainKind.Empty);
@@ -183,6 +185,13 @@ namespace DeepPressure
                     DeepPlayerPipeFactory.Create(this,order.fromNode,order.toNode,order.fromPort);
                     inventory.Commit(order.reservation); network.RefreshTopologyPreservingGas();
                     DeepParticleFeedback.Emit(DeepFeedbackKind.Build,effectPosition); break;
+                case DeepWorkKind.Wire:
+                    if(!CompleteWireOrder(order,out string wireReason))return BlockFinished(order,wireReason);
+                    break;
+                case DeepWorkKind.Sample:
+                case DeepWorkKind.Survey:
+                    if(!CompleteExplorationWork(order,out string explorationReason))return BlockFinished(order,explorationReason);
+                    break;
             }
             FinishOrder(order); return true;
         }

@@ -56,6 +56,7 @@ namespace DeepPressure
                 if (!inventory.TryAdd(item.item,item.amount)) Debug.LogError("Initial warehouse item does not fit or is invalid: "+(item.item == null ? "null" : item.item.id),this);
             if (excavationItem == null && catalog != null) excavationItem = catalog.FindItem("ore");
             UpdatePower(0);
+            RefreshExplorationVisibility();
         }
         void Update()
         {
@@ -72,6 +73,8 @@ namespace DeepPressure
             DeltaTime = IsSimulationPaused ? 0 : Mathf.Max(0,unscaledSeconds)*Mathf.Clamp(speed,.25f,4);
             if (DeltaTime <= 0) return;
             SimulationTime += DeltaTime; UpdatePower(DeltaTime);
+            TickLifeSupport(DeltaTime);
+            TickProductionTargets();
             foreach (var order in Orders)
                 if (order.state == DeepWorkState.Blocked && order.worker == null && order.Progress >= 1 && SimulationTime >= order.nextRetryTime)
                     TryComplete(order);
@@ -82,6 +85,7 @@ namespace DeepPressure
                 if (worker.currentOrder == null) ClaimOrder(worker);
                 if (worker.currentOrder != null) TickWorker(worker,DeltaTime);
             }
+            RefreshExplorationVisibility();
         }
         public Vector3 FootPosition(Vector2Int cell) => world.CellToWorld(cell)-world.transform.up*world.cellSize*.5f;
         public Vector3 BuildingPosition(Vector2Int cell) => world.CellToWorld(cell)-world.transform.TransformVector(new Vector3(.5f,.5f,0)*world.cellSize);

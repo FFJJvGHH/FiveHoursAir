@@ -13,6 +13,9 @@ namespace DeepPressure
         [Header("工作偏好 · 0 禁用 / 1 低 / 2 正常 / 3 高")]
         [Range(0,3)] public int digPreference = 2, buildPreference = 2, researchPreference = 2, craftPreference = 2, pipePreference = 2;
         public bool automationPaused;
+        [HideInInspector] public float airReserveSeconds=90;
+        [System.NonSerialized] public bool environmentUnsafe;
+        [System.NonSerialized] public float environmentEfficiency=1;
         [System.NonSerialized] public DeepWorkOrder currentOrder;
         internal float nextWorkSearchTime;
         public DeepWorkOrder CurrentOrder => currentOrder;
@@ -33,13 +36,16 @@ namespace DeepPressure
                 case DeepWorkKind.Research: return Mathf.Clamp(researchPreference,0,3);
                 case DeepWorkKind.Craft: return Mathf.Clamp(craftPreference,0,3);
                 case DeepWorkKind.Pipe: return Mathf.Clamp(pipePreference,0,3);
+                case DeepWorkKind.Wire: return Mathf.Clamp(buildPreference,0,3);
+                case DeepWorkKind.Sample:
+                case DeepWorkKind.Survey: return Mathf.Clamp(researchPreference,0,3);
                 default: return 3;
             }
         }
         internal bool Advance(float dt)
         {
             if (session == null || dt <= 0) return path.Count == 0;
-            float distance = dt*moveCellsPerSecond*session.world.cellSize;
+            float distance = dt*moveCellsPerSecond*session.world.cellSize*Mathf.Max(.5f,environmentEfficiency);
             while (path.Count > 0 && distance > 0)
             {
                 Vector2Int next = path.Peek();
