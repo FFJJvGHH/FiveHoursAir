@@ -4,7 +4,7 @@ using UnityEngine;
 
 namespace DeepPressure
 {
-    /// <summary>Fixed-step isothermal finite-tank demo. No ambient-cell diffusion, heat transfer or chemistry.</summary>
+    /// <summary>Fixed-step finite six-species pipe inventory. Room exchange is registered explicitly by life-support facilities.</summary>
     [DisallowMultipleComponent]
     [DefaultExecutionOrder(-100)]
     public sealed partial class GasNetworkSimulator : MonoBehaviour
@@ -61,17 +61,18 @@ namespace DeepPressure
             links = GetComponentsInChildren<GasLink>(true);
             foreach (GasNode node in nodes) if (!previous.Contains(node)) node.ResetInventory();
             InitialTotal = TotalInventory();
-            LastValidation = "All 4 species conserved";
+            LastValidation = "All " + GasMixture.SpeciesCount + " species conserved";
         }
+        public void RegisterExternalExchange(GasMixture delta) { InitialTotal += delta; }
         public bool VerifyConservation(out string message)
         {
             var total = TotalInventory();
             foreach (GasNode node in nodes)
                 if (node != null && !node.gas.IsFiniteAndNonnegative) { message = node.displayName + ": invalid inventory"; return false; }
-            for (int species = 0; species < 4; species++)
+            for (int species = 0; species < GasMixture.SpeciesCount; species++)
                 if (Math.Abs(total[species] - InitialTotal[species]) > Math.Max(1e-7, InitialTotal[species] * 1e-9))
                 { message = "Species " + species + " inventory drift"; return false; }
-            message = "All 4 species conserved"; return true;
+            message = "All " + GasMixture.SpeciesCount + " species conserved"; return true;
         }
         public void Step(float seconds)
         {
@@ -140,7 +141,7 @@ namespace DeepPressure
                 if (nodes[i] == null) continue;
                 double throughput = Math.Max(0, nodes[i].throughputMolPerSecond) * seconds;
                 if (requestedOut[i].Total > 0) outgoingScale[i] = Math.Min(1, throughput / requestedOut[i].Total);
-                for (int species = 0; species < 4; species++)
+                for (int species = 0; species < GasMixture.SpeciesCount; species++)
                     if (requestedOut[i][species] > 0) outgoingScale[i] = Math.Min(outgoingScale[i], Math.Max(0, snapshot[i][species]) / requestedOut[i][species]);
                 if (requestedIn[i] > 0) incomingScale[i] = Math.Min(1, Math.Min(capacities[i], throughput) / requestedIn[i]);
             }

@@ -12,7 +12,7 @@ namespace DeepPressure
         Vector2 researchScroll;
         bool draggingDig,missionCollapsed;
         Vector2Int digStart,digEnd;
-        Rect MissionRect=>new Rect(uiWidth-318,75,299,missionCollapsed?38:174);
+        Rect MissionRect=>new Rect(uiWidth-266,75,247,missionCollapsed?35:104);
         Rect CommandRect=>new Rect(dockRect.x,dockRect.y-42,dockRect.width,32);
         Rect TimeRect=>new Rect(uiWidth-316,17,297,39);
         bool CommandBlocksPointer=>TimeRect.Contains(pointer)||(colonyPanel==ColonyPanel.None&&MissionRect.Contains(pointer))||(colonyTool!=ColonyTool.None&&CommandRect.Contains(pointer));
@@ -24,11 +24,12 @@ namespace DeepPressure
             string rate=ColonyPaused?"已暂停":session.speed.ToString("0.#")+"×";
             SmallButton(new Rect(TimeRect.x+147,TimeRect.y+7,55,25),rate,()=>SetColonyPause(!ColonyPaused));
             SmallButton(new Rect(TimeRect.x+210,TimeRect.y+7,76,25),"菜单 Esc",TogglePauseMenu);
-            if(colonyPanel==ColonyPanel.None)DrawMission();
+            if(colonyPanel==ColonyPanel.None)DrawColonyPulse();
+            DrawSystemWorldFeedback();
             if(colonyTool!=ColonyTool.None)
             {
                 Rounded(CommandRect,Panel,7);
-                string action=colonyTool==ColonyTool.Dig?"挖掘：拖出矩形，松开提交":colonyTool==ColonyTool.Build?"建造："+(buildChoice!=null?buildChoice.displayName:""):"接管：点击目标设施";
+                string action=colonyTool==ColonyTool.Dig?"挖掘：拖出矩形，松开提交":colonyTool==ColonyTool.Build?"建造："+(buildChoice!=null?buildChoice.displayName:""):colonyTool==ColonyTool.Wire?(removeWireMode?"拆除电线 · 点击或拖动":"铺设电线 · 拖动规划路径") :"接管：点击目标设施";
                 Label(new Rect(CommandRect.x+12,CommandRect.y,355,32),action,body,Mint);
                 Label(new Rect(CommandRect.x+390,CommandRect.y,90,32),"任务优先级",small,Muted);
                 for(int i=1;i<=9;i++){int priority=i;Rect r=new Rect(CommandRect.x+480+(i-1)*28,CommandRect.y+4,24,24);Rounded(r,session.defaultOrderPriority==i?new Color(.24f,.4f,.31f):new Color(.10f,.16f,.18f),4);Label(r,i.ToString(),tiny,session.defaultOrderPriority==i?Mint:Muted);if(Click(r))session.defaultOrderPriority=priority;}
@@ -58,6 +59,8 @@ namespace DeepPressure
         bool HandleCommandInput(Event e,bool blocked)
         {
             if(session==null)return false;
+            if(HandleWireInput(e,blocked))return true;
+            if(GUI.GetNameOfFocusedControl()=="ResearchSearch"&&e.type==EventType.KeyDown&&e.keyCode!=KeyCode.Escape)return true;
             if(e.type==EventType.KeyDown)
             {
                 if(e.keyCode==KeyCode.Escape&&!pauseMenu)
@@ -75,6 +78,8 @@ namespace DeepPressure
                     case KeyCode.J:ActivateColonyTool(2);break;
                     case KeyCode.R:ActivateColonyTool(3);break;
                     case KeyCode.C:colonyPanel=colonyPanel==ColonyPanel.Craft?ColonyPanel.None:ColonyPanel.Craft;colonyTool=ColonyTool.None;selectedBuilding=null;break;
+                    case KeyCode.E:ToggleWireTool(e.shift);break;
+                    case KeyCode.I:colonyPanel=colonyPanel==ColonyPanel.Resources?ColonyPanel.None:ColonyPanel.Resources;break;
                     case KeyCode.F5:SaveQuick();break;
                     case KeyCode.F9:pauseBeforeMenu=ColonyPaused;pauseMenu=true;OpenSaveBrowser(false);break;
                     case KeyCode.Alpha1:SetColonySpeed(1);break;
@@ -181,7 +186,7 @@ namespace DeepPressure
         {
             for(int i=1;i<=9;i++){Rect r=new Rect(rect.x+(i-1)*24,rect.y,22,26);Rounded(r,order.priority==i?new Color(.22f,.38f,.29f):new Color(.08f,.14f,.16f),4);Label(r,i.ToString(),tiny,order.priority==i?Mint:Muted);if(Click(r))session.SetOrderPriority(order,i);}
         }
-        void DrawResearchPanel()
+        void DrawResearchPanelPrevious()
         {
             var techs=session.catalog.technologies.Where(t=>t!=null).ToArray();
             if(inspectedTech==null&&techs.Length>0)inspectedTech=techs.FirstOrDefault(t=>!session.IsTechUnlocked(t.id))??techs[0];

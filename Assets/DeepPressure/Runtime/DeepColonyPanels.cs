@@ -9,8 +9,8 @@ namespace DeepPressure
     /// <summary>Player-facing colony orders. All inventory, validation and completion belong to DeepGameSession.</summary>
     public sealed partial class DeepPressureHUD
     {
-        enum ColonyPanel{None,Build,Workers,Research,Craft}
-        enum ColonyTool{None,Build,Dig,Pipe}
+        enum ColonyPanel{None,Build,Workers,Research,Craft,Resources}
+        enum ColonyTool{None,Build,Dig,Pipe,Wire}
         DeepGameSession session;
         ColonyPanel colonyPanel;
         ColonyTool colonyTool;
@@ -74,8 +74,9 @@ namespace DeepPressure
                 DrawAssetIcon(item.icon,new Rect(x+8,slot.y+8,19,19),item.tint,Icon.Material);
                 Label(new Rect(x+35,slot.y,43,35),session.inventory.GetAmount(item).ToString(),body,White);
                 RegisterHover("stock"+item.id,slot,item.displayName,item.description);x+=87;
+                if(Click(slot))colonyPanel=ColonyPanel.Resources;
             }
-            if(x+119<uiWidth-18)
+            if(x+119<TimeRect.x-10)
             {
                 Rect power=new Rect(x,inventoryRect.y,119,35);Rounded(power,new Color(.035f,.065f,.078f,.68f),9);
                 DrawIcon(Icon.Power,new Rect(x+8,power.y+8,19,19),session.HasPower?Mint:Amber);
@@ -101,14 +102,14 @@ namespace DeepPressure
         {
             if(pauseMenu||colonyPanel==ColonyPanel.None)return;
             PanelBackground(colonyRect);
-            string heading=colonyPanel==ColonyPanel.Build?"建造":colonyPanel==ColonyPanel.Workers?"人员与工单":colonyPanel==ColonyPanel.Research?"科技研究":"制造";
+            string heading=colonyPanel==ColonyPanel.Build?"建造":colonyPanel==ColonyPanel.Workers?"人员与工单":colonyPanel==ColonyPanel.Research?"研究与工程":colonyPanel==ColonyPanel.Resources?"库存与生产":"制造";
             Icon icon=colonyPanel==ColonyPanel.Build?Icon.Build:colonyPanel==ColonyPanel.Workers?Icon.People:colonyPanel==ColonyPanel.Research?Icon.Research:Icon.Craft;
             DrawIcon(icon,new Rect(colonyRect.x+17,colonyRect.y+16,22,22),Mint);
             Label(new Rect(colonyRect.x+52,colonyRect.y+12,colonyRect.width-100,29),heading,title,White);
             Rect close=new Rect(colonyRect.xMax-38,colonyRect.y+12,27,27);DrawIcon(Icon.Close,Inset(close,5),Muted);
             if(Click(close)){colonyPanel=ColonyPanel.None;return;}
             if(session==null||session.catalog==null){Label(new Rect(colonyRect.x+18,colonyRect.y+70,colonyRect.width-36,30),"正在准备基地",body,Muted);return;}
-            switch(colonyPanel){case ColonyPanel.Build:DrawBuildPanel();break;case ColonyPanel.Workers:DrawWorkersPanel();break;case ColonyPanel.Research:DrawResearchPanel();break;case ColonyPanel.Craft:DrawCraftPanel();break;}
+            switch(colonyPanel){case ColonyPanel.Build:DrawBuildPanel();break;case ColonyPanel.Workers:DrawWorkersPanel();break;case ColonyPanel.Research:DrawResearchPanel();break;case ColonyPanel.Craft:DrawCraftPanel();break;case ColonyPanel.Resources:DrawResourcePanel();break;}
         }
         void DrawBuildPanelLegacy()
         {
@@ -371,7 +372,7 @@ namespace DeepPressure
         Rect ColonySelectionRect()
         {
             Vector3 position=selectedWorker!=null?selectedWorker.transform.position:selectedOrder!=null?world.CellToWorld(selectedOrder.targetCell):selectedBuilding.transform.position;
-            Vector2 p=WorldPoint(position);float height=selectedWorker!=null?292:selectedOrder!=null?262:selectedBuilding.GetComponentInChildren<GasNode>()!=null?409:selectedBuilding.definition!=null&&selectedBuilding.definition.role==DeepBuildingRole.Storage?334:282;
+            Vector2 p=WorldPoint(position);float height=selectedWorker!=null?320:selectedOrder!=null?262:selectedBuilding.GetComponentInChildren<GasNode>()!=null?500:selectedBuilding.definition!=null&&selectedBuilding.definition.role==DeepBuildingRole.Storage?365:330;
             float x=p.x+38;if(x+254>uiWidth-16)x=p.x-292;
             if(colonyPanel!=ColonyPanel.None&&x<colonyRect.xMax+12)x=colonyRect.xMax+14;
             return new Rect(Mathf.Clamp(x,16,uiWidth-270),Mathf.Clamp(p.y-height*.5f,74,uiHeight-height-97),254,height);
@@ -392,6 +393,7 @@ namespace DeepPressure
                 if(selectedWorker.currentOrder!=null&&!selectedWorker.currentOrder.IsTerminal){DrawOrderRow(selectedWorker.currentOrder,new Rect(x,y,220,55));y+=65;}
                 else{Label(new Rect(x,y,220,26),"等待新任务",small,Muted);y+=45;}
                 Label(new Rect(x,y,220,24),"右键地点 · 派遣移动",small,Mint);y+=32;
+                Label(new Rect(x,y,220,22),selectedWorker.environmentUnsafe?"气氛不适 · 呼吸缓冲 "+selectedWorker.airReserveSeconds.ToString("0")+"秒":"当前气氛适宜作业",small,selectedWorker.environmentUnsafe?Amber:Muted);y+=27;
                 var picked=selectedWorker;
                 SmallButton(new Rect(x,y,104,29),picked.automationPaused?"恢复调度":"停止待命",()=>{if(picked.automationPaused)session.ResumeWorker(picked);else{bool ok=session.RequestStop(picked,out string reason);ShowToast(reason,ok);}});
                 SmallButton(new Rect(x+113,y,104,29),"人员分工",()=>colonyPanel=ColonyPanel.Workers);return;
@@ -406,10 +408,12 @@ namespace DeepPressure
                 foreach(var item in session.catalog.items.Take(6)){if(item==null)continue;Label(new Rect(x,y,220,21),item.displayName+"  "+session.inventory.GetAmount(item),small,White);y+=22;}return;
             }
             if(definition.powerRequired>0||definition.powerGenerated>0)
-            {Metric(new Rect(x,y,220,24),Icon.Power,definition.powerGenerated>0?"供电 "+(building.isOn&&building.powered?definition.powerGenerated:0).ToString("0")+" W":"功耗 "+(building.isOn?definition.powerRequired:0).ToString("0")+" W");y+=32;}
+            {Metric(new Rect(x,y,220,24),Icon.Power,definition.powerGenerated>0?"供电 "+(building.isOn&&building.powered?definition.powerGenerated:0).ToString("0")+" W":"功耗 "+(building.isOn?definition.powerRequired:0).ToString("0")+" W");y+=28;Label(new Rect(x,y,220,25),session.PowerStatus(building),small,building.powered?Muted:Amber);y+=30;}
+            if(definition.role==DeepBuildingRole.Battery){Metric(new Rect(x,y,220,26),Icon.Battery,building.batteryEnergy.ToString("0")+" / "+definition.batteryCapacity.ToString("0")+" J");y+=32;}
             var gasNode=building.GetComponentInChildren<GasNode>();
             if(gasNode!=null)
             {
+                Label(new Rect(x,y,220,34),DeepGasFacility.Function(definition),new GUIStyle(small){wordWrap=true},Mint);y+=37;
                 PressureValue(x,ref y,gasNode.PressureKPa,NodeStatus(gasNode));DrawComposition(x,ref y,gasNode.gas);
                 Metric(new Rect(x,y,135,24),Icon.Flow,Math.Max(gasNode.lastInflowMolPerSecond,gasNode.lastOutflowMolPerSecond).ToString("0.0")+" mol/s");
                 int output=0;foreach(var link in network.links)

@@ -40,6 +40,7 @@ namespace DeepPressure.Editor
             var electronics=Item(items,"electronics","电子元件","控制器与仪表使用的标准电子模块。",new Color(.35f,.9f,.76f),Art("Props/console_Color.png"));
             var data=Item(items,"research_data","研究数据","解析电子模块获得的记录；研究时消耗。",new Color(.68f,.59f,.91f),Art("Props/console_Color.png"));
             var fuel=Item(items,"fuel","燃料块","开采页岩获得的可燃物。发电机持续消耗；矿料压制可补充燃料。",new Color(.91f,.59f,.26f),TerrainIcon("Shale"));
+            var reagent=Item(items,"process_reagent","工业凝剂","从架空工业蒸气中回收的密封原料。直接吸入有害，密封回收后可用于精密电子制造。",new Color(.67f,.53f,.85f),Art("Props/vent_Color.png"));
 
             var lamp=Building(buildings,"lamp","工作灯","照明",DeepBuildingRole.Light,new Vector2Int(1,1),Art("Props/vent_Color.png"),null,3,false,false,new[]{Cost(alloy,1),Cost(electronics,1)},
                 "照亮工作区域。需要 1 单位电力，可以单独关闭。",0,1);
@@ -62,6 +63,7 @@ namespace DeepPressure.Editor
             var vent=Building(buildings,"supply_vent","室内供气口","气体工业",DeepBuildingRole.Vent,Vector2Int.one,Art("Props/vent_Color.png"),null,4,false,false,new[]{Cost(alloy,2)},"将管道气体注入所在房间，氧分压达到 21 kPa 或总压达到 135 kPa 后关闭。连接氧气来源，维持人员呼吸。");
             var exhaust=Building(buildings,"exhaust_vent","尾气排放口","气体工业",DeepBuildingRole.Vent,Vector2Int.one,Art("Props/vent_Color.png"),"pressure_engineering",4,false,false,new[]{Cost(alloy,2)},"把管道尾气排入所在房间。请放置在隔离废气区；不会无条件删除气体。");
             var scrubber=Building(buildings,"co2_scrubber","二氧化碳收集器","气体工业",DeepBuildingRole.GasPump,new Vector2Int(2,2),Art("Industrial/separator_Color.png"),"pressure_engineering",12,true,false,new[]{Cost(alloy,8),Cost(electronics,3)},"消耗 10 W，从室内选择收集二氧化碳。需要尾气储罐和排放链，不能凭空销毁废气。",0,10);
+            var reclaimer=Building(buildings,"vapor_reclaimer","工业蒸气回收机","气体工业",DeepBuildingRole.GasPump,new Vector2Int(2,2),Art("Industrial/separator_Color.png"),"material_processing",12,true,false,new[]{Cost(alloy,8),Cost(electronics,3)},"消耗 6 W，将房间内的工业蒸气密封回收为工业凝剂。减少暴露并为电子制造提供原料；仓满时停止。",0,6);
 
             Tech(technologies,"survey_basics","地下测量","记录洞层与气体样本；解锁第一座气体缓冲罐。",tank.icon,25,Array.Empty<string>(),new[]{Cost(data,4)},new[]{tank.id});
             Tech(technologies,"pressure_engineering","压力工程","在测量基础上控制下游压力，保护供气系统。",regulator.icon,40,new[]{"survey_basics"},new[]{Cost(data,8),Cost(alloy,4)},new[]{regulator.id});
@@ -70,6 +72,7 @@ namespace DeepPressure.Editor
             Recipe(recipes,"assemble_electronics","组装电子元件","用合金材料组装标准电子模块（架空工艺）。",electronics.icon,new[]{Cost(alloy,2)},new[]{Cost(electronics,1)},12,fabricator.id);
             Recipe(recipes,"compile_research","解析研究数据","消耗电子模块以读取旧站记录。",data.icon,new[]{Cost(electronics,1)},new[]{Cost(data,2)},10,fabricator.id);
             Recipe(recipes,"press_fuel","压制燃料","从混合矿料中提取可燃组分：8 矿石 → 2 燃料。",fuel.icon,new[]{Cost(ore,8)},new[]{Cost(fuel,2)},12,fabricator.id);
+            Recipe(recipes,"reagent_electronics","凝剂精密装配","密封工业凝剂用于材料处理：1 工业凝剂 + 2 合金 → 3 电子元件。",electronics.icon,new[]{Cost(reagent,1),Cost(alloy,2)},new[]{Cost(electronics,3)},14,fabricator.id,"material_processing");
 
             var advancedStorage=Building(buildings,"advanced_storage","分区仓库","物流",DeepBuildingRole.Storage,new Vector2Int(3,2),storage.icon,"colony_planning",12,true,false,new[]{Cost(alloy,10),Cost(electronics,1)},"提供 400 单位共享仓容，缓解采掘与生产堵塞。",0,0,400);
             var improvedGenerator=Building(buildings,"improved_generator","高效地热机","动力",DeepBuildingRole.Generator,new Vector2Int(3,3),generator.icon,"power_distribution",20,true,false,new[]{Cost(alloy,16),Cost(electronics,5)},"提供 45 单位电力，支持制造、研究与分离设备同时运行。",45,0);
@@ -122,6 +125,13 @@ namespace DeepPressure.Editor
                 var surveyTech=technologies.First(x=>x.id=="survey_basics");surveyTech.unlockBuildingIds=new[]{tank.id,oxygenTank.id};EditorUtility.SetDirty(surveyTech);
                 var pressureTech=technologies.First(x=>x.id=="pressure_engineering");pressureTech.unlockBuildingIds=new[]{regulator.id,wasteTank.id,exhaust.id,scrubber.id};EditorUtility.SetDirty(pressureTech);
                 catalog.contentRevision=3;
+            }
+            if(catalog.contentRevision<4)
+            {
+                ConfigureGas(reclaimer,DeepGasFacilityMode.Recover,DeepGasAcceptance.Any,true,2);EditorUtility.SetDirty(reclaimer);
+                var processingTech=technologies.First(x=>x.id=="material_processing");processingTech.unlockBuildingIds=new[]{reclaimer.id};
+                processingTech.unlockRecipeIds=recipes.Where(x=>x!=null&&x.requiredTechId==processingTech.id).Select(x=>x.id).ToArray();EditorUtility.SetDirty(processingTech);
+                catalog.contentRevision=4;
             }
 
             catalog.items=items.Where(x=>x!=null).Distinct().ToArray();

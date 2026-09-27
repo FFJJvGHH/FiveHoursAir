@@ -15,6 +15,7 @@ namespace DeepPressure
         public struct RegionSample
         {
             public Vector4 composition;
+            public Vector2 reactiveComposition;
             public float pressureKPa, temperatureC;
             public Vector2Int sampleCell;
             public float sampledAtSeconds;
@@ -47,12 +48,12 @@ namespace DeepPressure
         static readonly Vector2Int[] Directions = { Vector2Int.left, Vector2Int.right, Vector2Int.up, Vector2Int.down };
         bool[] visible;
         int[] distanceToExplored;
-        Texture2D visibilityTexture, compositionTexture, pressureTexture, revealTexture;
+        Texture2D visibilityTexture, compositionTexture, pressureTexture, revealTexture,reactiveTexture;
         float[] revealValues;
         Color32[] revealPixels;
         Vector2 scanOrigin;
         float scanStart;
-        Color32[] visibilityPixels, compositionPixels, pressurePixels;
+        Color32[] visibilityPixels, compositionPixels, pressurePixels,reactivePixels;
         MaterialPropertyBlock fogProperties, gasProperties;
         float nextVisualRefresh;
         bool initialized;
@@ -70,10 +71,15 @@ namespace DeepPressure
             visible = new bool[count]; distanceToExplored = new int[count];
             revealValues=new float[count];revealPixels=new Color32[count];
             visibilityPixels = new Color32[count]; compositionPixels = new Color32[count]; pressurePixels = new Color32[count];
+            reactivePixels = new Color32[count];
             visibilityTexture = CreateTexture("DeepPressure Discovery", world.width, world.height);
             revealTexture = CreateTexture("DeepPressure Reveal",world.width,world.height);
             compositionTexture = CreateTexture("DeepPressure Gas Fractions", world.width, world.height);
             pressureTexture = CreateTexture("DeepPressure Gas Pressure", world.width, world.height);
+            reactiveTexture = CreateTexture("DeepPressure Reactive Gases",world.width,world.height);
+            compositionTexture.filterMode = FilterMode.Bilinear;
+            reactiveTexture.filterMode = FilterMode.Bilinear;
+            pressureTexture.filterMode = FilterMode.Bilinear;
             fogProperties = new MaterialPropertyBlock(); gasProperties = new MaterialPropertyBlock();
             if (initialExploredAreas != null) foreach (RectInt area in initialExploredAreas) RevealRect(area);
             RevealSolidRim();
@@ -163,7 +169,7 @@ namespace DeepPressure
 
         bool MeetsEntryThresholds(RegionSample sample, out string reason)
         {
-            if (!Finite(sample.pressureKPa) || !Finite(sample.temperatureC) || !Finite(sample.composition.x) || !Finite(sample.composition.z))
+            if (!Finite(sample.pressureKPa) || !Finite(sample.temperatureC) || !Finite(sample.composition.x) || !Finite(sample.composition.z) || !Finite(sample.reactiveComposition.x) || !Finite(sample.reactiveComposition.y))
             { reason = "传感器读数无效"; return false; }
             if (sample.pressureKPa < minimumPressureKPa || sample.pressureKPa > maximumPressureKPa)
             { reason = string.Format("压力 {0:F1} kPa 超出游戏入口范围 {1:F0}–{2:F0} kPa", sample.pressureKPa, minimumPressureKPa, maximumPressureKPa); return false; }
@@ -172,6 +178,8 @@ namespace DeepPressure
             { reason = string.Format("氧分压 {0:F1} kPa 不符合游戏入口阈值", oxygenPartial); return false; }
             if (sample.composition.z > maximumCarbonDioxideFraction)
             { reason = string.Format("CO₂ 比例 {0:P1} 高于游戏入口阈值 {1:P1}", sample.composition.z, maximumCarbonDioxideFraction); return false; }
+            if (sample.reactiveComposition.x > .025f || sample.reactiveComposition.y > .005f)
+            { reason = string.Format("活性气体过高 · CH₄ {0:P1} / 工艺蒸气 {1:P1}",sample.reactiveComposition.x,sample.reactiveComposition.y); return false; }
             if (sample.temperatureC < minimumTemperatureC || sample.temperatureC > maximumTemperatureC)
             { reason = string.Format("温度 {0:F1}°C 超出游戏入口范围", sample.temperatureC); return false; }
             reason = "入口读数符合游戏阈值"; return true;
@@ -194,20 +202,32 @@ namespace DeepPressure
         {
             var room = world.RoomAt(cell);
             Vector4 composition = region.composition;
+            Vector2 reactive = region.reactiveFractions;
             float pressure = region.initialPressureKPa, temperature = region.initialTemperatureC;
-            if (room != null)
+            var field = world.GetComponent<DeepAtmosphereField>();
+            if (field != null && field.IsInitialized)
+            {
+                var gas = field.Sample(cell); double total = gas.Total;
+                pressure = (float)field.PressureKPa(cell); temperature = (float)field.TemperatureC(cell);
+                composition = total > 1e-9 ? new Vector4((float)(gas.oxygen/total),(float)(gas.nitrogen/total),(float)(gas.carbonDioxide/total),(float)(gas.waterVapour/total)) : Vector4.zero;
+                reactive = total > 1e-9 ? new Vector2((float)(gas.methane/total),(float)(gas.processVapor/total)) : Vector2.zero;
+            }
+            else if (room != null)
             {
                 pressure = (float)room.PressureKPa; temperature = (float)room.temperatureC;
                 double total = room.gas.Total;
                 composition = total > 1e-9 ? new Vector4((float)(room.gas.oxygen / total), (float)(room.gas.nitrogen / total), (float)(room.gas.carbonDioxide / total), (float)(room.gas.waterVapour / total)) : Vector4.zero;
+                reactive = total > 1e-9 ? new Vector2((float)(room.gas.methane/total),(float)(room.gas.processVapor/total)) : Vector2.zero;
             }
             else
             {
                 composition = new Vector4(Mathf.Max(0, composition.x), Mathf.Max(0, composition.y), Mathf.Max(0, composition.z), Mathf.Max(0, composition.w));
-                float total = composition.x + composition.y + composition.z + composition.w;
+                reactive = new Vector2(Mathf.Max(0,reactive.x),Mathf.Max(0,reactive.y));
+                float total = composition.x + composition.y + composition.z + composition.w + reactive.x + reactive.y;
                 composition = total > 0 ? composition / total : Vector4.zero;
+                reactive = total > 0 ? reactive/total : Vector2.zero;
             }
-            return new RegionSample { composition = composition, pressureKPa = pressure, temperatureC = temperature, sampleCell = cell, sampledAtSeconds = Time.time };
+            return new RegionSample { composition = composition,reactiveComposition = reactive, pressureKPa = pressure, temperatureC = temperature, sampleCell = cell, sampledAtSeconds = Time.time };
         }
 
         void RevealRect(RectInt bounds) => ForEachInside(bounds, cell => visible[Index(cell)] = true);
@@ -257,21 +277,27 @@ namespace DeepPressure
 
         void RefreshGasTexture()
         {
+            var field = world.GetComponent<DeepAtmosphereField>();
+            bool localized = field != null && field.IsInitialized;
             for (int y = 0; y < world.height; y++) for (int x = 0; x < world.width; x++)
             {
                 var cell = new Vector2Int(x, y); int index = Index(cell);
-                compositionPixels[index] = default; pressurePixels[index] = default;
+                compositionPixels[index] = default; pressurePixels[index] = default; reactivePixels[index] = default;
                 if (!visible[index] || world.GetTerrain(x, y) != TerrainKind.Empty) continue;
                 DeepPressureRoom room = world.RoomAt(cell);
-                if (room == null || room.gas.Total <= 1e-9 || !room.gas.IsFiniteAndNonnegative) continue;
-                double total = room.gas.Total;
-                compositionPixels[index] = (Color32)new Color((float)(room.gas.oxygen / total), (float)(room.gas.nitrogen / total), (float)(room.gas.carbonDioxide / total), (float)(room.gas.waterVapour / total));
+                if (room == null) continue;
+                var gas = localized ? field.Sample(cell) : room.gas;
+                if (gas.Total <= 1e-9 || !gas.IsFiniteAndNonnegative) continue;
+                double total = gas.Total;
+                compositionPixels[index] = (Color32)new Color((float)(gas.oxygen / total), (float)(gas.nitrogen / total), (float)(gas.carbonDioxide / total), (float)(gas.waterVapour / total));
+                reactivePixels[index] = (Color32)new Color((float)(gas.methane/total),(float)(gas.processVapor/total),0,1);
                 int floorDistance=0;
                 while(floorDistance<8&&world.GetTerrain(x,y-floorDistance-1)==TerrainKind.Empty)floorDistance++;
-                pressurePixels[index] = (Color32)new Color(Mathf.Clamp01((float)room.PressureKPa / Mathf.Max(1, visualPressureScaleKPa)), 1, (floorDistance+.5f)/8, Mathf.Clamp01(((float)room.temperatureC+20)/120));
+                pressurePixels[index] = (Color32)new Color(Mathf.Clamp01((float)(localized ? field.PressureKPa(cell) : room.PressureKPa) / Mathf.Max(1, visualPressureScaleKPa)), 1, (floorDistance+.5f)/8, Mathf.Clamp01(((float)(localized ? field.TemperatureC(cell) : room.temperatureC)+20)/120));
             }
             compositionTexture.SetPixels32(compositionPixels); compositionTexture.Apply(false, false);
             pressureTexture.SetPixels32(pressurePixels); pressureTexture.Apply(false, false);
+            reactiveTexture.SetPixels32(reactivePixels); reactiveTexture.Apply(false,false);
         }
 
         void ApplyProperties()
@@ -285,6 +311,7 @@ namespace DeepPressure
             {
                 gasRenderer.GetPropertyBlock(gasProperties); SetMapProperties(gasProperties);
                 gasProperties.SetTexture("_VisibilityTex", visibilityTexture); gasProperties.SetTexture("_GasTex", compositionTexture);
+                gasProperties.SetTexture("_ReactiveTex",reactiveTexture);
                 gasProperties.SetTexture("_PressureTex", pressureTexture); gasProperties.SetFloat("_PressureScaleKPa",Mathf.Max(1,visualPressureScaleKPa)); gasRenderer.SetPropertyBlock(gasProperties);
             }
         }
@@ -298,6 +325,7 @@ namespace DeepPressure
         {
             ReleaseTexture(visibilityTexture); ReleaseTexture(compositionTexture); ReleaseTexture(pressureTexture);
             ReleaseTexture(revealTexture);
+            ReleaseTexture(reactiveTexture);
         }
         void UpdateRevealTexture(float dt)
         {

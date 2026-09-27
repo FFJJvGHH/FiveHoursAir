@@ -15,6 +15,8 @@ namespace DeepPressure
         [Min(0)] public float targetPressureKPa = 180;
         [Min(0)] public float throughputMolPerSecond = 15;
         public Vector4 initialComposition = new Vector4(.21f, .76f, .02f, .01f);
+        [Tooltip("Additional normalized fractions: methane and fictional industrial process vapour.")]
+        public Vector2 reactiveFractions;
         [NonSerialized] public GasMixture gas;
         [NonSerialized] public string status = "Ready";
         [NonSerialized] public double lastInflowMolPerSecond, lastOutflowMolPerSecond;
@@ -23,7 +25,7 @@ namespace DeepPressure
         public double CapacityMol => Math.Max(0, ReceivingLimitKPa) * 1000 * Math.Max(.001, volumeM3) / (GasMixture.GasConstant * Math.Max(1, temperatureC + 273.15));
         public void ResetInventory()
         {
-            gas = GasMixture.FromPressure(initialPressureKPa, volumeM3, temperatureC, initialComposition);
+            gas = GasMixture.FromPressure(initialPressureKPa, volumeM3, temperatureC, initialComposition, reactiveFractions);
             lastInflowMolPerSecond = lastOutflowMolPerSecond = 0; status = "Ready";
         }
     }

@@ -2,7 +2,7 @@ using System;
 using UnityEngine;
 namespace DeepPressure
 {
-    public enum DeepGasFacilityMode { Collect, Supply, Exhaust, Scrub, Storage }
+    public enum DeepGasFacilityMode { Collect, Supply, Exhaust, Scrub, Storage, Recover }
     public enum DeepGasAcceptance { Any, Oxygen, Waste }
     /// <summary>Gas interfaces use the same finite inventory as the pipe network.</summary>
     public static class DeepGasFacility
@@ -28,6 +28,7 @@ namespace DeepPressure
                 case DeepGasFacilityMode.Supply:return "管网 → 房间；按氧分压停止供气";
                 case DeepGasFacilityMode.Exhaust:return "管网 → 所在房间；请放在隔离区";
                 case DeepGasFacilityMode.Scrub:return "抽取所在房间 CO₂ → 尾气管网";
+                case DeepGasFacilityMode.Recover:return "工业蒸气 → 密封试剂；制造电子元件";
             }
             switch(definition.gasAcceptance)
             {

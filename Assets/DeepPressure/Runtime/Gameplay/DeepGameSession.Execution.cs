@@ -169,9 +169,11 @@ namespace DeepPressure
                     if (world.GetTerrain(order.targetCell.x,order.targetCell.y) == TerrainKind.Empty) { FinishOrder(order); return true; }
                     var output = ExcavationOutputs(order.targetCell);
                     if (!inventory.CanComplete(null,output,1,out string reason)) return BlockFinished(order,reason);
+                    PrepareExcavationHazard(order.targetCell);
                     if (world.terrain != null) world.terrain.SetTile(new Vector3Int(order.targetCell.x,order.targetCell.y,0),null);
                     world.SetTerrain(order.targetCell.x,order.targetCell.y,TerrainKind.Empty);
                     RefreshWorldAfterTerrain(order.targetCell); inventory.Complete(null,output,1,out _);
+                    ResolveExcavationHazard(order.targetCell);
                     DeepParticleFeedback.Emit(DeepFeedbackKind.Dig,effectPosition); break;
                 }
                 case DeepWorkKind.Research:
@@ -219,7 +221,9 @@ namespace DeepPressure
         }
         void RefreshWorldAfterTerrain(Vector2Int cell)
         {
-            world.SyncTerrainFromTilemap(); world.RebuildRoomsPreservingGas();
+            world.SyncTerrainFromTilemap();
+            if(lifeSupportEnabled&&Atmosphere!=null&&Atmosphere.IsInitialized){world.RebuildRooms();Atmosphere.RebuildAfterTerrainChange();}
+            else world.RebuildRoomsPreservingGas();
             if (exploration != null) { exploration.RefreshAfterTerrainChange(); exploration.RevealAroundWork(cell); }
         }
     }

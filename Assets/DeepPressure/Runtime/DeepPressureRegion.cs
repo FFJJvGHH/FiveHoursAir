@@ -15,6 +15,8 @@ namespace DeepPressure
         [Range(-100, 500)] public float initialTemperatureC = 22;
         [Tooltip("Mole fractions O2, N2, CO2, H2O. Normalized at initialization.")]
         public Vector4 composition = new Vector4(0.21f, 0.78f, 0.01f, 0);
+        [Tooltip("Additional normalized fractions: methane and fictional industrial process vapour.")]
+        public Vector2 reactiveFractions;
         public Color overlayColor = new Color(0.2f, 0.7f, 0.85f, 0.22f);
         public bool Contains(Vector2Int cell) => bounds.Contains(cell);
 

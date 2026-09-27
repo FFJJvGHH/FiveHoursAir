@@ -69,6 +69,11 @@ namespace DeepPressure
         bool RevealSight(Vector2Int origin,int radius)
         {
             if (!world.IsInside(origin)) return false;
+            if (world.GetTerrain(origin.x,origin.y) != TerrainKind.Empty)
+            {
+                bool newlyKnown = !visible[Index(origin)]; visible[Index(origin)] = true;
+                return newlyKnown;
+            }
             bool changed = false;
             for (int y = -radius; y <= radius; y++) for (int x = -radius; x <= radius; x++)
             {
