@@ -14,7 +14,7 @@ namespace DeepPressure
             float oxygen=(float)(packet.oxygen/packet.Total);
             switch(building.definition.gasAcceptance)
             {
-                case DeepGasAcceptance.Oxygen:return oxygen>=.75f;
+                case DeepGasAcceptance.Oxygen:return oxygen>=.75f && packet.methane/packet.Total<.01 && packet.processVapor/packet.Total<.001 && packet.carbonDioxide/packet.Total<.02;
                 case DeepGasAcceptance.Waste:return oxygen<=.25f;
                 default:return true;
             }
@@ -32,7 +32,7 @@ namespace DeepPressure
             }
             switch(definition.gasAcceptance)
             {
-                case DeepGasAcceptance.Oxygen:return "储存含氧 ≥75% 的产品气体";
+                case DeepGasAcceptance.Oxygen:return "储存清洁氧气产品；按含氧量及活性气体限值拒收杂气";
                 case DeepGasAcceptance.Waste:return "储存含氧 ≤25% 的尾气";
                 default:return definition.role==DeepBuildingRole.GasSeparator?"原气 → 氧气产品 + 独立尾气":definition.role==DeepBuildingRole.GasRegulator?"限制下游压力和输送流量":"储存混合原气，缓冲供需波动";
             }

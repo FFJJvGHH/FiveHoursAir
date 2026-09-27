@@ -56,7 +56,7 @@ namespace DeepPressure
                     if(reagent==null||inventory.AvailableCapacity<1){gasFacilityStatus[building]="仓满，停止收集";continue;}
                     var packet=field.TakeSpecies(building.origin,5,Math.Min(limit,Math.Max(0,5-node.gas.processVapor)));
                     node.gas+=packet;network?.RegisterExternalExchange(packet);
-                    if(node.gas.processVapor>=5-1e-6&&inventory.TryAdd(reagent,1)){var converted=new GasMixture{processVapor=Math.Min(5,node.gas.processVapor)};node.gas-=converted;network?.RegisterExternalExchange(converted.Scaled(-1));}
+                    if(node.gas.processVapor>=5&&inventory.TryAdd(reagent,1)){var converted=new GasMixture{processVapor=5};node.gas-=converted;network?.RegisterExternalExchange(converted.Scaled(-1));}
                     gasFacilityStatus[building]=packet.Total>0?"回收工业蒸气 → 密封试剂":"等待工业蒸气扩散至入口";continue;
                 }
                 if(def.gasMode==DeepGasFacilityMode.Collect||def.gasMode==DeepGasFacilityMode.Scrub)
@@ -65,7 +65,7 @@ namespace DeepPressure
                     GasMixture packet;
                     if(def.gasMode==DeepGasFacilityMode.Scrub)packet=field.TakeSpecies(building.origin,2,Math.Min(limit,capacity));
                     else packet=field.Take(building.origin,Math.Min(limit,capacity));
-                    if(packet.Total<=1e-6){gasFacilityStatus[building]=capacity<=.001?"出口满载，等待接管":"附近没有可抽取气体";continue;}
+                    if(packet.Total<=0){gasFacilityStatus[building]=capacity<=.001?"出口满载，等待接管":"附近没有可抽取气体";continue;}
                     node.gas+=packet;network?.RegisterExternalExchange(packet);CarbonRemovalRate+=(float)packet.carbonDioxide/dt;
                     node.lastInflowMolPerSecond+=packet.Total/dt;gasFacilityStatus[building]=def.gasMode==DeepGasFacilityMode.Scrub?"正在回收 CO₂":"正在采集所在房间气体";
                 }

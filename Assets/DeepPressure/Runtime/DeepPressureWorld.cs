@@ -79,6 +79,16 @@ namespace DeepPressure
             if(materialField==null)materialField=gameObject.AddComponent<DeepTerrainMaterialField>();
             materialField.world=this;materialField.RefreshField();
         }
+        /// <summary>Script reload reconstructs nonserialized caches without calling Awake again.</summary>
+        public void EnsureRuntimeState()
+        {
+            if (!HasValidTerrainData && terrain != null) SyncTerrainFromTilemap();
+            if (!HasValidTerrainData) return;
+            if (roomMap != null && roomMap.Length == width*height && (rooms.Count > 0 || Array.IndexOf(terrainKinds,TerrainKind.Empty) < 0)) return;
+            RebuildRooms();
+            var field = GetComponent<DeepAtmosphereField>();
+            if (field != null && field.IsInitialized) field.SyncRooms();
+        }
         [ContextMenu("Sync Terrain Data From Painted Tilemap")]
         public void SyncTerrainFromTilemap()
         {

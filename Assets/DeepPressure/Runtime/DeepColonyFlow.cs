@@ -54,9 +54,26 @@ namespace DeepPressure
                 FlowButton(new Rect(left,y,300,47),Icon.Research,helpOpen?"收起操作说明":"操作与工程流程",true,()=>helpOpen=!helpOpen);
                 Rect brief=new Rect(left+350,top+126,550,330);PanelBackground(brief);
                 Label(new Rect(brief.x+28,brief.y+21,480,33),helpOpen?"下达指令，让工程员完成工作":"重启一座沉寂的地下站",title,White);
-                string[] lines=helpOpen?new[]{"左键选择人物 / 设施；右键目的地下达移动。","B 建造 · G 框选挖掘 · J 人员 · R 科技 · C 制造","1 / 2 / 3 切换速度，空格暂停；Esc 逐级返回。","F5 快速保存 · F9 打开读档；中键拖动 / 滚轮缩放。","材料先预留，工人取料、移动、施工后才产生结果。","任务 1–9 级；人员分工可禁用、降低或提高偏好。"}:new[]{"01  建设研究台，安排人员分工与第一批施工。","02  矿石 → 合金 → 元件 → 数据，形成制造循环。","03  按科技分支解锁储气、调压与分离设备。","04  先取样再勘探，为开挖和管网延伸准备条件。","05  持续经营；手动档案与自动存档保存进度。"};
-                for(int i=0;i<lines.Length;i++)Label(new Rect(brief.x+28,brief.y+72+i*37,490,32),lines[i],body,i==0?Mint:Muted);
-                Label(new Rect(left,top+474,880,28),"工程演示版本  ·  存档保存在本机  ·  自动存档每 120 秒",small,Muted);
+                if(helpOpen)
+                {
+                    string[] lines={"左键选中人物或设施，右键派遣人物。","B 建造 · G 挖掘 · E 电线 · Shift+E 拆线","J 人员 · R 科技 · C 制造 · I 库存","空格暂停，1 / 2 / 3 调速；Esc 返回。","F5 快存 · F9 档案；中键拖动 / 滚轮缩放。","人员视野会自动揭雾，取样需要到场作业。"};
+                    for(int i=0;i<lines.Length;i++)Label(new Rect(brief.x+28,brief.y+72+i*37,490,32),lines[i],body,i==0?Mint:Muted);
+                }
+                else
+                {
+                    Icon[] symbols={Icon.Explore,Icon.Pump,Icon.Filter,Icon.OxygenTank,Icon.Home};
+                    string[] roles={"气源","采集","处理","缓冲","供气"};
+                    for(int i=0;i<5;i++)
+                    {
+                        float bx=brief.x+35+i*98;DrawIcon(symbols[i],new Rect(bx,brief.y+94,40,40),i==2?Amber:Mint);
+                        Label(new Rect(bx-6,brief.y+150,54,24),roles[i],tiny,White);
+                        if(i<4){Fill(new Rect(bx+50,brief.y+114,36,2),Border);DrawIcon(Icon.Play,new Rect(bx+75,brief.y+108,13,13),Muted);}
+                    }
+                    DrawIcon(Icon.Wire,new Rect(brief.x+35,brief.y+217,27,27),Amber);
+                    Label(new Rect(brief.x+80,brief.y+214,423,32),"接通电力，观察流量，决定怎样开发下一片洞层。",body,Muted);
+                    Label(new Rect(brief.x+35,brief.y+276,480,25),"所有提示都可略过。设备与环境会告诉你正在发生什么。",small,Muted);
+                }
+                Label(new Rect(left,top+474,880,28),"深井工程 v0.6  ·  本机存档  ·  每 120 秒自动保存",small,Muted);
             }
             if(!string.IsNullOrEmpty(menuMessage))Label(new Rect(left,uiHeight-75,920,35),menuMessage,new GUIStyle(body){wordWrap=true},Amber);
             drawingPauseMenu=false;
@@ -91,7 +108,10 @@ namespace DeepPressure
         }
         void FlowButton(Rect rect,Icon icon,string label,bool enabled,Action action)
         {
-            ActionButton(rect,icon,label,enabled);
+            bool primary=label.StartsWith("开始",StringComparison.Ordinal)||label.StartsWith("返回当前",StringComparison.Ordinal);
+            Rounded(rect,primary?new Color(.16f,.34f,.28f):rect.Contains(pointer)&&enabled?new Color(.11f,.19f,.20f):new Color(.06f,.11f,.13f),7);
+            DrawIcon(icon,new Rect(rect.x+15,rect.center.y-10,20,20),enabled?Mint:Muted);
+            Label(new Rect(rect.x+48,rect.y,rect.width-59,rect.height),label,new GUIStyle(body){fontSize=14},enabled?White:Muted);
             if(Click(rect)&&enabled){DeepInterfaceFeedback.Play(true);action();}
         }
         static string TimeLabel(float seconds)=>((int)seconds/60).ToString("00")+":"+((int)seconds%60).ToString("00");

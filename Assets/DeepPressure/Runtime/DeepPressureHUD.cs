@@ -25,7 +25,7 @@ namespace DeepPressure
         readonly float[] hoverAmounts = new float[12];
         GUIStyle body, small, title, number, tiny;
         Font interfaceFont;
-        bool initialized, draggingValve;
+        [NonSerialized] bool initialized, draggingValve;
         string toast;
         bool toastSuccess;
         float toastTime;
@@ -311,7 +311,7 @@ namespace DeepPressure
         {
             bool hover = rect.Contains(pointer);
             Rounded(rect,emphasized ? new Color(.13f,.28f,.23f,.9f) : new Color(.12f,.19f,.21f,hover ? 1 : .75f),7);
-            DrawIcon(icon,new Rect(rect.x+12,rect.y+6,17,17),emphasized || hover ? Mint : Muted);
+            DrawIcon(icon,new Rect(rect.x+12,rect.center.y-8.5f,17,17),emphasized || hover ? Mint : Muted);
             Label(new Rect(rect.x+39,rect.y,rect.width-45,rect.height),text,body,emphasized || hover ? White : Muted);
         }
         void ExecuteExploration(bool explore,Vector2Int cell)
@@ -529,17 +529,8 @@ namespace DeepPressure
             if (rect.width <= 0 || rect.height <= 0) return;
             radius = Mathf.Min(radius,Mathf.Min(rect.width,rect.height)*.5f);
             if (radius < .6f) { Fill(rect,color); return; }
-            Color previous = GUI.color; GUI.color = color; Texture2D texture = DeepUIIcons.Rounded;
-            float r = radius, u = .25f;
-            GUI.DrawTextureWithTexCoords(new Rect(rect.x,rect.y,r,r),texture,new Rect(0,1-u,u,u));
-            GUI.DrawTextureWithTexCoords(new Rect(rect.xMax-r,rect.y,r,r),texture,new Rect(1-u,1-u,u,u));
-            GUI.DrawTextureWithTexCoords(new Rect(rect.x,rect.yMax-r,r,r),texture,new Rect(0,0,u,u));
-            GUI.DrawTextureWithTexCoords(new Rect(rect.xMax-r,rect.yMax-r,r,r),texture,new Rect(1-u,0,u,u));
-            GUI.DrawTextureWithTexCoords(new Rect(rect.x+r,rect.y,rect.width-r*2,r),texture,new Rect(u,1-u,1-u*2,u));
-            GUI.DrawTextureWithTexCoords(new Rect(rect.x+r,rect.yMax-r,rect.width-r*2,r),texture,new Rect(u,0,1-u*2,u));
-            GUI.DrawTextureWithTexCoords(new Rect(rect.x,rect.y+r,r,rect.height-r*2),texture,new Rect(0,u,u,1-u*2));
-            GUI.DrawTextureWithTexCoords(new Rect(rect.xMax-r,rect.y+r,r,rect.height-r*2),texture,new Rect(1-u,u,u,1-u*2));
-            GUI.DrawTexture(new Rect(rect.x+r,rect.y+r,rect.width-r*2,rect.height-r*2),Texture2D.whiteTexture);
+            Color previous = GUI.color; GUI.color = Color.white;
+            GUI.DrawTexture(rect,Texture2D.whiteTexture,ScaleMode.StretchToFill,true,0,color,0,radius);
             GUI.color = previous;
         }
         static void Brackets(Rect rect,Color color,float length)

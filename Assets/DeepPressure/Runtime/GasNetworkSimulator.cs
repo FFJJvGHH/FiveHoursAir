@@ -19,6 +19,7 @@ namespace DeepPressure
         public GasMixture InitialTotal { get; private set; }
         public string LastValidation { get; private set; } = "Not initialized";
         double accumulatedTime;
+        [NonSerialized] bool runtimeInitialized;
 
         sealed class Transfer
         {
@@ -27,9 +28,14 @@ namespace DeepPressure
             public GasMixture packet;
             public bool reversed;
         }
-        void Start() => ResetSimulation();
+        void Start() => EnsureInitialized();
+        public void EnsureInitialized()
+        {
+            if (!runtimeInitialized) ResetSimulation();
+        }
         void Update()
         {
+            EnsureInitialized();
             if (paused) return;
             accumulatedTime += Math.Min(.25, Time.unscaledDeltaTime) * simulationSpeed;
             int iterations = 0;
@@ -46,6 +52,7 @@ namespace DeepPressure
             foreach (GasNode node in nodes) node.ResetInventory();
             foreach (GasLink link in links) { link.lastFlowMolPerSecond = 0; link.status = "Idle"; }
             accumulatedTime = 0; ElapsedSeconds = 0; StepCount = 0; InitialTotal = TotalInventory(); LastValidation = "Conserved";
+            runtimeInitialized = true;
         }
         public GasMixture TotalInventory()
         {
@@ -62,6 +69,7 @@ namespace DeepPressure
             foreach (GasNode node in nodes) if (!previous.Contains(node)) node.ResetInventory();
             InitialTotal = TotalInventory();
             LastValidation = "All " + GasMixture.SpeciesCount + " species conserved";
+            runtimeInitialized = true;
         }
         public void RegisterExternalExchange(GasMixture delta) { InitialTotal += delta; }
         public bool VerifyConservation(out string message)
@@ -77,6 +85,7 @@ namespace DeepPressure
         public void Step(float seconds)
         {
             if (seconds <= 0 || float.IsNaN(seconds) || float.IsInfinity(seconds)) return;
+            EnsureInitialized();
             int count = nodes.Length;
             var nodeIndex = new Dictionary<GasNode, int>();
             var snapshot = new GasMixture[count];

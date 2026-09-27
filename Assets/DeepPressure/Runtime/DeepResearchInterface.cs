@@ -26,7 +26,7 @@ namespace DeepPressure
             string[] branches=techs.Select(t=>string.IsNullOrEmpty(t.branch)?"工程基础":t.branch).Distinct().ToArray();
             var depth=new Dictionary<string,int>();foreach(var tech in techs)depth[tech.id]=0;
             for(int pass=0;pass<techs.Length;pass++)foreach(var tech in techs)foreach(string id in tech.prerequisiteIds??Array.Empty<string>())if(depth.TryGetValue(id,out int parent))depth[tech.id]=Mathf.Min(techs.Length,Mathf.Max(depth[tech.id],parent+1));
-            int columns=depth.Values.Max()+1;float columnWidth=Mathf.Max(174,(viewport.width-86)/columns),rowHeight=Mathf.Max(146,(viewport.height-24)/Mathf.Max(1,branches.Length));
+            int columns=depth.Values.Max()+1;float columnWidth=Mathf.Max(174,(viewport.width-110)/columns),rowHeight=Mathf.Max(146,(viewport.height-24)/Mathf.Max(1,branches.Length));
             var cards=new Dictionary<string,Rect>();var counts=new Dictionary<string,int>();
             foreach(var tech in techs)
             {

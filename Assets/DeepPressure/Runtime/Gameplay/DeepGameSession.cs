@@ -34,15 +34,17 @@ namespace DeepPressure
         readonly Dictionary<Vector2Int,DeepBuildingInstance> occupancy = new Dictionary<Vector2Int,DeepBuildingInstance>();
         readonly HashSet<Vector2Int> blockedCells = new HashSet<Vector2Int>(), ladderCells = new HashSet<Vector2Int>();
         DeepExploration exploration;
-        bool initialized;
+        [NonSerialized] bool initialized;
         int nextOrderId = 1;
         void Start() => InitializeSession();
         public void InitializeSession()
         {
-            if (initialized) return;
             if (world == null) world = GetComponentInParent<DeepPressureWorld>();
             if (world == null) return;
+            world.EnsureRuntimeState();
+            if (initialized) return;
             if (network == null) network = world.GetComponent<GasNetworkSimulator>();
+            if(network!=null)network.EnsureInitialized();
             exploration = world.GetComponent<DeepExploration>();
             initialized = true; inventory = inventory ?? new DeepInventory();
             Workers.Clear(); Workers.AddRange(world.GetComponentsInChildren<DeepWorker>(true));
@@ -58,6 +60,7 @@ namespace DeepPressure
             UpdatePower(0);
             if(lifeSupportEnabled){var field=Atmosphere;}
             RefreshExplorationVisibility();
+            RestoreSessionAfterReload();
         }
         void Update()
         {
@@ -178,6 +181,11 @@ namespace DeepPressure
                 building.RefreshVisualState();
             }
         }
-        void OnDisable() { if (Application.isPlaying) Time.timeScale = 1; }
+        void OnDisable()
+        {
+            if (!Application.isPlaying) return;
+            PreserveSessionForReload();
+            Time.timeScale = 1;
+        }
     }
 }

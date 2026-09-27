@@ -56,7 +56,7 @@ namespace DeepPressure
         Color32[] visibilityPixels, compositionPixels, pressurePixels,reactivePixels;
         MaterialPropertyBlock fogProperties, gasProperties;
         float nextVisualRefresh;
-        bool initialized;
+        [NonSerialized] bool initialized;
 
         void Awake() => Initialize();
 
@@ -302,6 +302,8 @@ namespace DeepPressure
 
         void ApplyProperties()
         {
+            if(fogProperties==null)fogProperties=new MaterialPropertyBlock();
+            if(gasProperties==null)gasProperties=new MaterialPropertyBlock();
             if (fogRenderer != null)
             {
                 fogRenderer.GetPropertyBlock(fogProperties); SetMapProperties(fogProperties);

@@ -50,6 +50,13 @@ namespace DeepPressure.Editor
                     case "research":SetPanel(session,"Research");break;
                     case "build-menu":SetPanel(session,"Build");break;
                     case "workers":SetPanel(session,"Workers");break;
+                    case "roundtrip":File.WriteAllText(Path.Combine(output,"v06-active-save.txt"),DeepPersistenceTests.RunActiveSceneRoundTrip());break;
+                    case "simulate":
+                        session.paused=false;
+                        for(int i=0;i<200;i++){session.Tick(.1f);session.network.Step(.1f);}
+                        session.paused=true;
+                        File.WriteAllText(Path.Combine(output,"v06-live-simulation.txt"),"Time "+session.SimulationTime+"\nNetwork "+session.network.LastValidation+"\nSupply "+session.OxygenSupplyRate+"\nDemand "+session.OxygenDemandRate+"\nPower "+session.PowerProduction+" / "+session.PowerDemand);
+                        if(session.network.LastValidation.Contains("drift"))throw new InvalidOperationException(session.network.LastValidation);break;
                     case "game":SetPanel(session,"None");break;
                     case "capture":ShowGameView();ScreenCapture.CaptureScreenshot(Path.Combine(output,"v06-game.png"));break;
                     case "build":Build();break;
@@ -74,6 +81,9 @@ namespace DeepPressure.Editor
             void Check(string label,Func<string> test){try{report.AppendLine(label+": "+test());}catch(Exception e){failures++;report.AppendLine("FAIL "+label+"\n"+e);}}
             Check("Core",DeepPressureSelfTests.RunAll);Check("Gameplay",DeepGameplayTests.RunGameplayTests);Check("Power",DeepPowerTests.RunAll);
             Check("Exploration",DeepExplorationTests.RunAll);Check("Atmosphere",DeepAtmosphereTests.RunAll);Check("Hazards",DeepHazardTests.RunAll);Check("Persistence",DeepPersistenceTests.RunAll);
+            Check("Life support",DeepLifeSupportTests.RunAll);
+            Check("Network lifecycle",DeepNetworkLifecycleTests.RunAll);
+            Check("Scene workflow",()=>{DeepColonyVerification.Run();return "PASS actual-scene construction, wire branch, manufacturing, research, lamp and pause";});
             Check("Grounding",()=>DeepPresentationUpgrade.ValidateCatalogGrounding(UnityEngine.Object.FindObjectOfType<DeepGameSession>().catalog));
             Check("Visual",()=>{string result=DeepVisualValidation.ValidateActiveScene(out bool ok);if(!ok)throw new Exception(result);return result;});
             File.WriteAllText(Path.Combine(output,"v06-validation.txt"),report.ToString());

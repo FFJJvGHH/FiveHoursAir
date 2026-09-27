@@ -16,6 +16,7 @@ namespace DeepPressure
         internal double SaveRemainder => accumulatedTime;
         internal void RestoreSavedClock(double elapsed,int steps,double remainder)
         {
+            runtimeInitialized = true;
             ElapsedSeconds = elapsed; StepCount = steps; accumulatedTime = remainder;
             InitialTotal = TotalInventory(); LastValidation = "All " + GasMixture.SpeciesCount + " species conserved";
         }

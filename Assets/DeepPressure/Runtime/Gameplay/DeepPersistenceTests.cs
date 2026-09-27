@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Reflection;
 using UnityEngine;
 namespace DeepPressure
 {
@@ -10,8 +11,35 @@ namespace DeepPressure
         public static string RunAll()
         {
             PendingWorkRoundTrip(); CompletedWorldAndNewGame(); DiscoveryRoundTrip(); CorruptionAndAtomicRecovery(); RejectInvalidBeforeMutation();
-            UpgradedSystemsRoundTrip(); PendingInfrastructureWorkRoundTrip(); LegacyAndInvalidSystems();
-            return "Deep Pressure persistence: 8 groups passed. In-flight jobs/material reservations; buildings/terrain/pipes/new game; fog/samples; checksums/backup recovery; preflight rejection; six-species cell gases/heat/wires/batteries/prepaid fuel/production/hazard clocks; pending wire/sample/survey work; legacy migration and invalid upgraded saves.";
+            UpgradedSystemsRoundTrip(); PendingInfrastructureWorkRoundTrip(); LegacyAndInvalidSystems(); ScriptReloadRecovery();
+            return "Deep Pressure persistence: 9 groups passed. In-flight jobs/material reservations; buildings/terrain/pipes/new game; fog/samples; checksums/backup recovery; preflight rejection; six-species cell gases/heat/wires/batteries/prepaid fuel/production/hazard clocks; pending wire/sample/survey work; legacy migration and invalid upgraded saves; editor-reload cache and initial-baseline recovery.";
+        }
+        /// <summary>Run explicitly in the authored Play session, after starting its colony.</summary>
+        public static string RunActiveSceneRoundTrip()
+        {
+            Assert(Application.isPlaying,"Actual-scene round-trip requires Play mode.");
+            var session=UnityEngine.Object.FindObjectOfType<DeepGameSession>();
+            Assert(session!=null&&session.HasPlayableSession,"Start the authored colony before its end-to-end round-trip.");
+            session.InitializeSession();var before=Clone(session.CaptureSaveState());bool restored=false;
+            try
+            {
+                Assert(session.ValidateSaveState(before,out string reason),reason);
+                Assert(session.NewGame(out reason),"Actual scene NewGame: "+reason);
+                Assert(session.world.Rooms.Count>0&&session.Orders.Count==0,"Authored NewGame must rebuild a playable initial map.");
+                var fresh=session.CaptureSaveState();Assert(session.ValidateSaveState(fresh,out reason),reason);
+                Assert(session.TryRestoreSaveState(before,out reason),reason);restored=true;
+                var after=session.CaptureSaveState();
+                Assert(after.buildings.Length==before.buildings.Length&&after.workers.Length==before.workers.Length&&after.orders.Length==before.orders.Length,"Actual-scene object and work counts must survive NewGame/restore.");
+                Assert(Mathf.Abs(after.simulationTime-before.simulationTime)<.0001f,"Actual-scene clock must return to its saved value.");
+                for(int i=0;i<before.terrain.Length;i++)Assert(after.terrain[i]==before.terrain[i],"Actual-scene terrain must round-trip.");
+                if(before.lifeSupport)for(int i=0;i<before.atmosphereCells.Length;i++)
+                {
+                    AssertGas(after.atmosphereCells[i],before.atmosphereCells[i],"Actual-scene per-cell inventories must round-trip.");
+                    Assert(Math.Abs(after.atmosphereTemperatures[i]-before.atmosphereTemperatures[i])<1e-7,"Actual-scene cell temperatures must round-trip.");
+                }
+                return "Authored Play scene: NewGame + validated full-state restore passed ("+after.buildings.Length+" buildings, "+after.workers.Length+" workers, "+after.terrain.Length+" terrain cells).";
+            }
+            finally{if(!restored)session.TryRestoreSaveState(before,out _);}
         }
         static void PendingWorkRoundTrip()
         {
@@ -232,6 +260,35 @@ namespace DeepPressure
                 AssertGas(field.TotalInventory(),SumRooms(f.world),"Rejected upgraded saves leave both atmosphere views unchanged.");
             }
         }
+        static void ScriptReloadRecovery()
+        {
+            using(var f=new Fixture())
+            {
+                f.session.CaptureInitialState();Assert(f.session.NewGame(out string reason),reason);
+                Assert(f.session.RequestBuild(f.lamp,new Vector2Int(8,1),out reason),reason);f.session.Tick(.1f);
+                f.a.gas=new GasMixture{oxygen=17,methane=3};f.network.RestoreSavedClock(.5,5,0);
+                var before=Clone(f.session.CaptureSaveState());f.session.PreserveSessionForReload();
+                // Unity preserves serialized fields and transforms but reconstructs these runtime caches.
+                var roomList=(System.Collections.IList)typeof(DeepPressureWorld).GetField("rooms",BindingFlags.Instance|BindingFlags.NonPublic).GetValue(f.world);roomList.Clear();
+                SetPrivate(f.world,"roomMap",null);SetPrivate(f.session,"initialized",false);SetPrivate(f.session,"initialSaveState",null);
+                SetPrivate(f.session,"<SimulationTime>k__BackingField",0f);SetPrivate(f.session,"nextOrderId",1);
+                SetPrivate(f.session,"<HasPlayableSession>k__BackingField",false);
+                f.session.inventory=new DeepInventory();f.session.Orders.Clear();f.worker.currentOrder=null;f.worker.SetPath(null);f.a.gas=f.b.gas=default;
+                f.session.InitializeSession();
+                var restored=f.session.CaptureSaveState();Assert(f.session.ValidateSaveState(restored,out reason),reason);
+                Assert(f.world.Rooms.Count>0&&f.session.HasPlayableSession,"Reload recovers topology and the active session flag.");
+                Assert(f.worker.currentOrder!=null&&f.worker.currentOrder.fetchingMaterials&&f.worker.CapturePath().Length==before.workers[0].path.Length,"Reload restores a live material pickup and route.");
+                Assert(f.session.inventory.GetAmount(f.ore)==26&&f.session.inventory.UsedCapacity==30,"Reload retains reservations without reapplying starting inventory.");
+                AssertGas(f.a.gas,before.nodes[0].gas,"Reload restores nonserialized gas tanks.");
+                Assert(f.session.NewGame(out reason),reason);
+                Assert(f.session.Orders.Count==0&&f.session.SimulationTime==0&&f.session.inventory.GetAmount(f.ore)==30,"NewGame uses the preserved initial baseline, not the in-progress reload snapshot.");
+                // Even without a session restart, capture repairs a missing world topology cache.
+                roomList.Clear();SetPrivate(f.world,"roomMap",null);
+                Assert(f.session.ValidateSaveState(f.session.CaptureSaveState(),out reason),"Capture after world cache loss: "+reason);
+            }
+        }
+        static void SetPrivate(object target,string name,object value)
+        {var field=target.GetType().GetField(name,BindingFlags.Instance|BindingFlags.NonPublic);Assert(field!=null,"Reload fixture field exists: "+name);field.SetValue(target,value);}
         static GasMixture SumRooms(DeepPressureWorld world) { GasMixture total=default;foreach(var room in world.Rooms)total+=room.gas;return total; }
         static void AssertGas(GasMixture actual,GasMixture expected,string message)
         {for(int species=0;species<GasMixture.SpeciesCount;species++)Assert(Math.Abs(actual[species]-expected[species])<Math.Max(1e-7,Math.Abs(expected[species])*1e-9),message);}

@@ -36,6 +36,20 @@ namespace DeepPressure.Editor
                 var build=session.Orders.Last();Require(session.Buildings.All(b=>b.origin!=new Vector2Int(11,53)),"No instant construction");
                 TickUntil(session,build,120);Require(session.inventory.GetAmount(catalog.FindItem("alloy"))<startAlloy,"Building consumes reserved materials");
                 Require(session.Buildings.Any(b=>b.definition.id=="research_bench"&&b.origin==new Vector2Int(11,53)),"Worker erected research bench");
+                if(session.useWiredPower)
+                {
+                    var bench=session.Buildings.First(b=>b.definition.id=="research_bench"&&b.origin==new Vector2Int(11,53));
+                    var terminal=session.PowerTerminal(bench);
+                    Require(session.completedWireCells.Count>0,"Starter circuit exists");
+                    var at=session.completedWireCells.OrderBy(c=>Mathf.Abs(c.x-terminal.x)+Mathf.Abs(c.y-terminal.y)).First();
+                    while(at!=terminal)
+                    {
+                        if(at.x!=terminal.x)at.x+=Math.Sign(terminal.x-at.x);else at.y+=Math.Sign(terminal.y-at.y);
+                        if(session.HasWire(at))continue;
+                        Require(session.RequestWire(at,out reason),"Queue bench circuit: "+reason);TickUntil(session,session.Orders.Last(),120);
+                    }
+                    Require(bench.powered,"Research bench requires its completed wire branch");
+                }
                 int ore=session.inventory.GetAmount(catalog.FindItem("ore")),alloy=session.inventory.GetAmount(catalog.FindItem("alloy"));
                 Require(session.RequestCraft(catalog.FindRecipe("smelt_alloy"),2,out reason),"Queue fabrication: "+reason);
                 TickUntil(session,session.Orders.Last(),120);

@@ -8,6 +8,9 @@ namespace DeepPressure
     public sealed partial class DeepGameSession
     {
         DeepSaveData initialSaveState;
+        [SerializeField,HideInInspector] string initialReloadJson,reloadSaveJson;
+        [SerializeField,HideInInspector] bool reloadPlayableSession;
+        [SerializeField,HideInInspector] List<DeepTerrainTile> reloadTilePalette = new List<DeepTerrainTile>();
         readonly Dictionary<string,DeepTerrainTile> savedTilePalette = new Dictionary<string,DeepTerrainTile>(StringComparer.Ordinal);
         public static string SaveDirectory => Path.Combine(Application.persistentDataPath,"DeepPressure","Saves","v1");
         public bool HasPlayableSession { get; private set; }
@@ -17,7 +20,9 @@ namespace DeepPressure
         {
             if (initialSaveState != null) return;
             InitializeSession(); if (!initialized) return;
+            if (initialSaveState != null) return;
             initialSaveState = CaptureSaveState();
+            initialReloadJson = DeepSaveStore.Encode(initialSaveState);
             if (Application.isPlaying && GetComponent<DeepAutosave>() == null) gameObject.AddComponent<DeepAutosave>().session = this;
         }
         public DeepSaveSlotInfo[] GetSaveSlots() => DeepSaveStore.List(SaveDirectory);
@@ -59,6 +64,31 @@ namespace DeepPressure
             ResetAutosaveTimer(); message = "新基地已就绪"; return true;
         }
         void ResetAutosaveTimer() { var autosave = GetComponent<DeepAutosave>(); if (autosave != null) autosave.ResetTimer(); }
+        // Unity serializes these strings between OnDisable and the new domain's first Update.
+        // This keeps editor recompiles from dropping uncommitted tasks or recapturing a damaged baseline.
+        internal void PreserveSessionForReload()
+        {
+            if (!initialized || world == null || !world.HasValidTerrainData) return;
+            try
+            {
+                var snapshot = CaptureSaveState();
+                if (!ValidateSaveState(snapshot,out _)) return;
+                reloadSaveJson = DeepSaveStore.Encode(snapshot); reloadPlayableSession = HasPlayableSession;
+                if (initialSaveState != null) initialReloadJson = DeepSaveStore.Encode(initialSaveState);
+            }
+            catch (Exception exception) { Debug.LogWarning("暂存编辑器重载状态失败："+exception.Message,this); }
+        }
+        void RestoreSessionAfterReload()
+        {
+            if (reloadTilePalette != null)
+                foreach (var tile in reloadTilePalette) if (tile != null) savedTilePalette[tile.name] = tile;
+            if (initialSaveState == null && !string.IsNullOrEmpty(initialReloadJson) && DeepSaveStore.Decode(initialReloadJson,out var baseline,out _)) initialSaveState = baseline;
+            if (string.IsNullOrEmpty(reloadSaveJson)) return;
+            string encoded = reloadSaveJson; reloadSaveJson = null;
+            if (DeepSaveStore.Decode(encoded,out var snapshot,out string reason) && TryRestoreSaveState(snapshot,out reason))
+            { HasPlayableSession = reloadPlayableSession; ResetAutosaveTimer(); }
+            else Debug.LogWarning("编辑器重载状态恢复失败："+reason,this);
+        }
         public DeepSaveData CaptureSaveState()
         {
             InitializeSession(); if (!initialized || !world.HasValidTerrainData) throw new InvalidOperationException("关卡尚未初始化");
@@ -85,11 +115,11 @@ namespace DeepPressure
             var cooldowns = new List<DeepSavedIgnition>();
             foreach (var pair in lastIgnitionEvent) cooldowns.Add(new DeepSavedIgnition { cell = pair.Key,time = pair.Value });
             data.ignitionCooldowns = cooldowns.ToArray();
-            if (constructedFloorTile != null) savedTilePalette[constructedFloorTile.name] = constructedFloorTile;
+            if (constructedFloorTile != null) RememberSaveTile(constructedFloorTile);
             for (int y = 0; y < world.height; y++) for (int x = 0; x < world.width; x++)
             {
                 var tile = world.MaterialAt(new Vector2Int(x,y)); if (tile == null) continue;
-                savedTilePalette[tile.name] = tile; data.terrainTiles[y*world.width+x] = tile.name;
+                RememberSaveTile(tile); data.terrainTiles[y*world.width+x] = tile.name;
             }
             var buildingData = new List<DeepSavedBuilding>();
             foreach (var building in Buildings)
@@ -141,6 +171,12 @@ namespace DeepPressure
             if(savedAtmosphere!=null){data.atmosphereCells=savedAtmosphere.CaptureCells();data.atmosphereTemperatures=savedAtmosphere.CaptureTemperatures();}
             if (network != null) { data.networkElapsed = network.ElapsedSeconds; data.networkSteps = network.StepCount; data.networkRemainder = network.SaveRemainder; data.networkStepSeconds = network.fixedStepSeconds; }
             return data;
+        }
+        void RememberSaveTile(DeepTerrainTile tile)
+        {
+            savedTilePalette[tile.name] = tile;
+            if (reloadTilePalette == null) reloadTilePalette = new List<DeepTerrainTile>();
+            if (!reloadTilePalette.Contains(tile)) reloadTilePalette.Add(tile);
         }
         public bool TryRestoreSaveState(DeepSaveData data,out string message)
         {
